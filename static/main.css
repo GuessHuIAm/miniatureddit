@@ -1,0 +1,99 @@
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: bold;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+/* Navigation */
+.navbar {
+  background-color: #333;
+}
+
+.navbar-brand {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.nav-link {
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Forms */
+.form-control {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #0069d9;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  border: none;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+/* Cards */
+.card {
+  border-radius: 0;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-title {
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.card-text {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.text-muted {
+  font-size: 0.875rem;
+}
+
+/* Spacing */
+.py-3 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.mb-3 {
+  margin-bottom: 1rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: -15px;
+  margin-right: -15px;
+}
+
+.col-md-6 {
+  flex: 0 0 calc(50% - 30px);
+  max-width: calc(50% - 30px);
+  padding-left: 15px;
+  padding-right: 15px;
+}

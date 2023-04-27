@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for
-from models import db, Post
+from models import db, Post, User, Comment, Vote
 from forms import PostForm, LoginForm, RegisterForm
 from p2p import P2PNode
 from config import DB, SECRET_KEY
@@ -14,26 +14,19 @@ with app.app_context():
 
 node = P2PNode()
 
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    form = PostForm()
-    if form.validate_on_submit():
-        post = Post(content=form.content.data)
-        db.session.add(post)
-        db.session.commit()
-
-        node.broadcast_post(post)
-        return redirect(url_for('index'))
-
+    # Display all the posts
     posts = Post.query.order_by(Post.upvotes.desc()).all()
-    return render_template('index.html', form=form, posts=posts)
+    return render_template('index.html', posts=posts)
 
 
 @app.route('/upvote/<int:post_id>')
 def upvote(post_id):
     post = Post.query.get(post_id)
     if post:
-        post.upvotes += 1
+        # TODO: Implement upvote logic
         db.session.commit()
 
         node.broadcast_vote(post_id, True)
@@ -44,10 +37,56 @@ def upvote(post_id):
 def downvote(post_id):
     post = Post.query.get(post_id)
     if post:
-        post.downvotes += 1
+        # TODO: Implement downvote logic
         db.session.commit()
 
         node.broadcast_vote(post_id, False)
+    return redirect(url_for('index'))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        # TODO: Implement login logic
+        pass
+    return render_template('login.html', form=form)
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegisterForm()
+    if form.validate_on_submit():
+        # TODO: Implement register logic
+        pass
+    return render_template('register.html', form=form)
+
+
+@app.route('/post/<int:post_id>', methods=['GET', 'POST'])
+def post(post_id):
+    post = Post.query.get(post_id)
+    if post:
+        form = PostForm()
+        if form.validate_on_submit():
+            comment = Comment(content=form.content.data, post_id=post_id)
+            db.session.add(comment)
+            db.session.commit()
+            return redirect(url_for('post', post_id=post_id))
+
+        comments = Comment.query.filter_by(post_id=post_id).order_by(Comment.upvotes.desc()).all()
+        return render_template('post.html', post=post, form=form, comments=comments)
+    return redirect(url_for('index'))
+
+
+@app.route('/comment/<int:comment_id>')
+
+
+@app.route('/profile/<int:user_id>')
+def profile(user_id):
+    user = User.query.get(user_id)
+    if user:
+        posts = Post.query.filter_by(author_id=user_id).order_by(Post.upvotes.desc()).all()
+        return render_template('profile.html', user=user, posts=posts)
     return redirect(url_for('index'))
 
 
