@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Post Board</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Post Board</h1>
+
+      <div class="row">
+        <div class="col-md-6">
+          <form method="post" action="{{ url_for('index') }}" class="form-horizontal">
+            {{ form.csrf_token }}
+            {{ form.content.label }}
+            {{ form.content }}
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </form>
+        </div>
+      </div>
+
+      <hr />
+
+      <div class="row">
+        {% for post in posts %}
+          <div class="col-md-6">
+            <div class="panel panel-default">
+              <div class="panel-body">
+                <h3>{{ post.author }}</h3>
+                <p>{{ post.content }}</p>
+                <p>Upvotes: {{ post.upvotes }}</p>
+                <p>Downvotes: {{ post.downvotes }}</p>
+                <a href="{{ url_for('upvote', post_id = post.id) }}" class="btn btn-primary">Upvote</a>
+                <a href="{{ url_for('downvote', post_id = post.id) }}" class="btn btn-danger">Downvote</a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfP5gUT+XnY2QtbnoGnK/2m4alwHqr1MwFXd86K2m" crossorigin="anonymous"></script>
+  </body>
+</html>
