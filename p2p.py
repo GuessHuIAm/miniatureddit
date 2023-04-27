@@ -18,9 +18,10 @@ class P2PNode:
         }
         self.gossip_protocol.broadcast(json.dumps(data))
 
-    def broadcast_vote(self, post_id, is_upvote):
+    def broadcast_vote(self, type, post_id, is_upvote):
         data = {
             'type': 'vote',
+            'post_type': type,
             'post_id': post_id,
             'is_upvote': is_upvote
         }
