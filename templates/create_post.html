@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Make a Post
+{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-md-6">
+      <form method="post" action="{{ url_for('create_post') }}" class="form-horizontal">
+        {{ form.csrf_token }}
+        <div class="form-group">
+          {{ form.title.label(class="form-label") }}
+          {{ form.title(class="form-control") }}
+          {% for error in form.title.errors %}
+            <span class="text-danger">{{ error }}</span>
+          {% endfor %}
+        </div>
+        <div class="form-group">
+          {{ form.content.label(class="form-label") }}
+          {{ form.content(class="form-control") }}
+          {% for error in form.content.errors %}
+            <span class="text-danger">{{ error }}</span>
+          {% endfor %}
+        </div>
+        <div class="form-group form-check">
+          {{ form.anonymous.label(class="form-check-label") }}
+          {{ form.anonymous(class="form-check-input") }}
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

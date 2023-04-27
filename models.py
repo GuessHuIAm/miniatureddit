@@ -1,16 +1,19 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 db = SQLAlchemy()
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(64), nullable=False)
     content = db.Column(db.Text, nullable=False)
     upvotes = db.Column(db.Integer, default=0)
     downvotes = db.Column(db.Integer, default=0)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     anonymous = db.Column(db.Boolean, default=False)
+    date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     comments = db.relationship('Comment', backref='post', lazy=True)
     votes = db.relationship('Vote', backref='post', lazy=True)
 
@@ -20,6 +23,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     posts = db.relationship('Post', backref='author', lazy=True)
     comments = db.relationship('Comment', backref='author', lazy=True)
+    date_created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     votes = db.relationship('Vote', backref='user', lazy=True)
     
     def is_authenticated(self):
@@ -42,13 +46,14 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return '<User{}>'.format(self.username)
+        return '<user/{}>'.format(self.username)
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
+    date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     upvotes = db.Column(db.Integer, default=0)
     downvotes = db.Column(db.Integer, default=0)
     votes = db.relationship('Vote', backref='comment', lazy=True)

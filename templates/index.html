@@ -6,17 +6,32 @@
 
 {% block content %}
   <div class="row">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flashes">
+            {% for message in messages %}
+            <span class="text-danger">{{ message }}</span>
+            {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
     {% for post in posts %}
       <div class="col-md-6 mb-3">
         <div class="card">
           <div class="card-body">
-            <h3 class="card-title">{{ post.author }}</h3>
+            {% if post.anonymous %}
+              <h3 class="card-title">Anonymous</h3>
+            {% else %}
+              <h3 class="card-title">{{ post.author }}</h3>
+            {% endif %}
+            <h4 class="card-subtitle mb-2 text-muted">{{ post.title }}</h4>
             <p class="card-text">{{ post.content }}</p>
             <p class="card-text">
               <small class="text-muted">Upvotes: {{ post.upvotes }}, Downvotes: {{ post.downvotes }}</small>
             </p>
-            <a href="{{ url_for('upvote', post_id = post.id) }}" class="btn btn-primary">Upvote</a>
-            <a href="{{ url_for('downvote', post_id = post.id) }}" class="btn btn-danger">Downvote</a>
+            <a href="{{ url_for('upvote', id = post.id, is_post = true) }}" class="btn btn-success">Upvote</a>
+            <a href="{{ url_for('downvote', id = post.id, is_post = true) }}" class="btn btn-danger">Downvote</a>
+            <a href="{{ url_for('post', post_id = post.id) }}" class="btn btn-primary">View Post</a>
           </div>
         </div>
       </div>

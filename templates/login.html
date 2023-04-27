@@ -1,26 +1,38 @@
 {% extends 'base.html' %}
 
-{% block title %}
-  Login
+{% block header %}
+  <h2>Login</h2>
 {% endblock %}
 
 {% block content %}
-  <h1>Login</h1>
+  <h1>Sign In</h1>
   <form method="post" action="{{ url_for('login') }}">
     {{ form.hidden_tag() }}
     <div class="form-group">
-      {{ form.username.label(class="form-label") }}
-      {{ form.username(class="form-control") }}
+      {{ form.username.label(class = 'form-label') }}
+      {{ form.username(class = 'form-control') }}
       {% for error in form.username.errors %}
         <span class="text-danger">{{ error }}</span>
       {% endfor %}
+    </div>
     <div class="form-group">
-      {{ form.password.label(class="form-label") }}
-      {{ form.password(class="form-control") }}
+      {{ form.password.label(class = 'form-label') }}
+      {{ form.password(class = 'form-control') }}
       {% for error in form.password.errors %}
         <span class="text-danger">{{ error }}</span>
       {% endfor %}
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <ul class="flashes">
+            {% for message in messages %}
+              <span class="text-danger">{{ message }}</span>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
     </div>
     <button type="submit" class="btn btn-primary">Login</button>
+    Don't have an account?
+    <a href="{{ url_for('register') }}">Register</a>
   </form>
 {% endblock %}

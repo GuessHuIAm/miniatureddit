@@ -6,20 +6,32 @@
 
 {% block content %}
   <div class="row">
-    {% for post in posts %}
-      <div class="col-md-6 mb-3">
-        <div class="card">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body">
+          <h3 class="card-title">{{ user.username }}</h3>
+        </div>
+      </div>
+      {% if is_current_user %}
+        <a href="{{ url_for('logout') }}" class="btn btn-danger mt-3">Logout</a>
+      {% endif %}
+    </div>
+    <div class="col-md-8">
+      {% for post in posts %}
+        <div class="card mb-3">
           <div class="card-body">
-            <h3 class="card-title">{{ post.author }}</h3>
+            <h5 class="card-title">{{ post.title }}</h5>
             <p class="card-text">{{ post.content }}</p>
+            <p class="card-text">
+              <small class="text-muted">Posted by {{ post.author.username }} on {{ post.date_posted.strftime('%B %d, %Y') }}</small>
+            </p>
             <p class="card-text">
               <small class="text-muted">Upvotes: {{ post.upvotes }}, Downvotes: {{ post.downvotes }}</small>
             </p>
-            <a href="{{ url_for('upvote', post_id = post.id) }}" class="btn btn-primary">Upvote</a>
-            <a href="{{ url_for('downvote', post_id = post.id) }}" class="btn btn-danger">Downvote</a>
+            <a href="{{ url_for('post', post_id = post.id) }}" class="btn btn-primary">View Post</a>
           </div>
         </div>
-      </div>
-    {% endfor %}
+      {% endfor %}
+    </div>
   </div>
 {% endblock %}
