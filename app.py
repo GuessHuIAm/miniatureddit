@@ -1,12 +1,23 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from flask_login import LoginManager, login_required, login_user, logout_user, current_user
-from models import db, Post, User, Comment, Vote
-from functools import wraps
-from forms import PostForm, LoginForm, RegisterForm
-from p2p import P2PNode
 from datetime import datetime
+from functools import wraps
+from multiprocessing import Process
+
+from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_login import (LoginManager, current_user, login_required,
+                         login_user, logout_user)
+
+from config import *
+from forms import LoginForm, PostForm, RegisterForm
+from models import Comment, Post, User, Vote, db
+from p2p import P2PNode
 
 CONFIG_FILE = 'config.py'
+SERVER_HIERARCHY = [
+    (HOST, PORT),
+    (REP_1_HOST, REP_1_PORT),
+    (REP_2_HOST, REP_2_PORT)
+]
+
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -23,6 +34,8 @@ node = P2PNode()
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+# engine = db.create_engine(SQLALCHEMY_DATABASE_URI)
+# conn = engine.connect()
 
 # Route for the homepage, which shows all the posts
 @app.route('/', methods=['GET', 'POST'])
@@ -72,7 +85,7 @@ def login():
 
         login_user(user)
         flash('Logged in successfully.')
-        
+
         return redirect(url_for('index'))
 
     return render_template('login.html', form=form)
@@ -95,8 +108,8 @@ def register():
     form = RegisterForm()
     if form.validate_on_submit():
         user = User(username=form.username.data)
-        user = User.query.filter_by(username=form.username.data).first()
-        if user is not None:
+        query = User.query.filter_by(username=form.username.data).first()
+        if query is not None:
             flash('Username already exists.')
             return redirect(url_for('register'))
         user.set_password(form.password.data)
@@ -104,7 +117,7 @@ def register():
         db.session.commit()
 
         flash('Congratulations, you are now a registered user! You are logged in.')
-        
+
         login_user(user)
 
         return redirect(url_for('index'))
@@ -207,3 +220,11 @@ def post(post_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+    # primary = Process(target=launch_app, args=(0,))
+    # replica_1 = Process(target=launch_app, args=(1,))
+    # replica_2 = Process(target=launch_app, args=(2,))
+
+    # primary.start()
+    # replica_1.start()
+    # replica_2.start()

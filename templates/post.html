@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Post
+{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">{{ post.title }}</h5>
+        <p class="card-text">{{ post.content }}</p>
+        <p class="card-text">
+        <small class="text-muted">Posted by {{ post.author.username }} on {{ post.date_posted.strftime('%B %d, %Y') }}</small>
+        </p>
+        <p class="card-text">
+        <small class="text-muted">Upvotes: {{ post.upvotes }}, Downvotes: {{ post.downvotes }}</small>
+    </div>
+</div>
+
+{% for comment in comments %}{# TODO #}{% endfor %}
+{% endblock %}
