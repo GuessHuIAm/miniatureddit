@@ -5,6 +5,7 @@ from multiprocessing import Process
 from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_login import (LoginManager, current_user, login_required,
                          login_user, logout_user)
+from flask_replicated import FlaskReplicated
 
 from config import *
 from forms import LoginForm, PostForm, RegisterForm
@@ -34,17 +35,34 @@ node = P2PNode()
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# engine = db.create_engine(SQLALCHEMY_DATABASE_URI)
-# conn = engine.connect()
+# Initialized flask replicator
+flask_rep = FlaskReplicated(app)
+flask_rep.init_app(app)
 
 # Route for the homepage, which shows all the posts
 @app.route('/', methods=['GET', 'POST'])
 def index():
     # Display all the posts
-    posts = Post.query.order_by(Post.upvotes.desc()).all()
+    posts = [{'post': x} for x in Post.query.order_by(Post.upvotes.desc()).all()]
+
+    # Logic to properly display user upvotes/downvotes
+    if current_user.is_authenticated:
+        user_id = current_user.id
+        for post in posts:
+            content = post['post']
+            vote_query = content.votes.filter(
+                Post.votes.any(
+                    user_id=user_id, post_id=content.id
+                )
+            ).all()
+            post['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
 
     # TODO: Implement post filtering logic/community selection logic
-    return render_template('index.html', posts=posts)
+    return render_template(
+        'index.html',
+        posts=posts,
+        logged_in=current_user.is_authenticated,
+    )
 
 
 # This callback is used to reload the user object from the user ID stored in the session
@@ -167,36 +185,90 @@ def create_post():
 @app.route('/upvote/<is_post>/<int:id>')
 @login_required
 def upvote(is_post, id):
-    if is_post:
-        post = Post.query.get(id)
-        if post:
-            # TODO: Implement upvote logic
-            db.session.commit()
-            node.broadcast_vote('post', id, True)
-    else:
-        comment = Comment.query.get(id)
-        if comment:
-            # TODO: Implement upvote logic
-            db.session.commit()
-            node.broadcast_vote('comment', id, True)
+    user_id = current_user.id
+
+    # Determine content class
+    content_class = Post if is_post else Comment
+
+    # Update upvotes for the content
+    content = content_class.query.get(id)
+    if content:
+        vote_query = content.votes.filter(
+            content_class.votes.any(
+                user_id=user_id, post_id=id
+            )
+        ).all()
+        new_vote = Vote(
+            user_id = user_id,
+            post_id = id if is_post else -1,
+            comment_id = -1 if is_post else id,
+            is_upvote = True
+        )
+
+        # If a user has voted, either remove an upvote or
+        # swap from downvote to upvote
+        has_voted = len(vote_query) > 0
+        if has_voted:
+            vote = vote_query[0]
+            content.votes.remove(vote)
+            if vote.is_upvote:
+                content.upvotes -= 1
+            else:
+                content.upvotes += 1
+                content.downvotes -= 1
+                content.votes.append(new_vote)
+
+        # Else, register upvote
+        else:
+            content.upvotes += 1
+            content.votes.append(new_vote)
+        db.session.commit()
+        node.broadcast_vote('post' if is_post else 'comment', id, True)
+
     return redirect(url_for('index'))
 
 
 @app.route('/downvote/<is_post>/<int:id>')
 @login_required
 def downvote(is_post, id):
-    if is_post:
-        post = Post.query.get(id)
-        if post:
-            # TODO: Implement downvote logic
-            db.session.commit()
-            node.broadcast_vote('post', id, False)
-    else:
-        comment = Comment.query.get(id)
-        if comment:
-            # TODO: Implement downvote logic
-            db.session.commit()
-            node.broadcast_vote('comment', id, False)
+    user_id = current_user.id
+
+    # Determine content class
+    content_class = Post if is_post else Comment
+
+    # Update downvotes for the content
+    content = content_class.query.get(id)
+    if content:
+        vote_query = content.votes.filter(
+            content_class.votes.any(
+                user_id=user_id, post_id=id
+            )
+        ).all()
+        new_vote = Vote(
+            user_id = user_id,
+            post_id = id if is_post else -1,
+            comment_id = -1 if is_post else id,
+            is_upvote = False
+        )
+
+        # If a user has voted, either swap from upvote to downvote or
+        # remove a downvote
+        has_voted = len(vote_query) > 0
+        if has_voted:
+            vote = vote_query[0]
+            content.votes.remove(vote)
+            if vote.is_upvote:
+                content.upvotes -= 1
+                content.downvotes += 1
+                content.votes.append(new_vote)
+            else:
+                content.downvotes -= 1
+        else:
+            content.downvotes += 1
+            content.votes.append(new_vote)
+        db.session.commit()
+        node.broadcast_vote('post' if is_post else 'comment', id, False)
+
     return redirect(url_for('index'))
 
 
@@ -220,11 +292,3 @@ def post(post_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-    # primary = Process(target=launch_app, args=(0,))
-    # replica_1 = Process(target=launch_app, args=(1,))
-    # replica_2 = Process(target=launch_app, args=(2,))
-
-    # primary.start()
-    # replica_1.start()
-    # replica_2.start()

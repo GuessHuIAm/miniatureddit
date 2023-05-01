@@ -15,7 +15,7 @@ class Post(db.Model):
     anonymous = db.Column(db.Boolean, default=False)
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     comments = db.relationship('Comment', backref='post', lazy=True)
-    votes = db.relationship('Vote', backref='post', lazy=True)
+    votes = db.relationship('Vote', backref='post', lazy='dynamic')
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -25,7 +25,7 @@ class User(db.Model):
     comments = db.relationship('Comment', backref='author', lazy=True)
     date_created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     votes = db.relationship('Vote', backref='user', lazy=True)
-    
+
     def is_authenticated(self):
         return True
 
@@ -37,7 +37,7 @@ class User(db.Model):
 
     def get_id(self):
         return str(self.id)
-    
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
         db.session.commit()
@@ -56,7 +56,7 @@ class Comment(db.Model):
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     upvotes = db.Column(db.Integer, default=0)
     downvotes = db.Column(db.Integer, default=0)
-    votes = db.relationship('Vote', backref='comment', lazy=True)
+    votes = db.relationship('Vote', backref='comment', lazy='dynamic')
 
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
