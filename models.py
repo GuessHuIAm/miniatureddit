@@ -39,7 +39,7 @@ class User(db.Model):
         return str(self.id)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha512')
         db.session.commit()
 
     def check_password(self, password):

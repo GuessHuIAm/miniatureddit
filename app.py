@@ -165,16 +165,13 @@ def profile(user_id):
 @app.route('/create_post', methods=['GET', 'POST'])
 @login_required
 def create_post():
-    print('INNN HERE')
     form = PostForm()
     if form.validate_on_submit():
-        print(form)
         post = Post(title=form.title.data, content=form.content.data, author=current_user, date_posted=datetime.utcnow())
         if form.anonymous.data:
             post.anonymous = True
         db.session.add(post)
         db.session.commit()
-        print('Post created')
         flash('Your post has been created!')
         return redirect(url_for('index'))
     return render_template('create_post.html', title='Make a Post', form=form)
