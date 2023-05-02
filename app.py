@@ -8,7 +8,7 @@ from flask_login import (LoginManager, current_user, login_required,
 from flask_replicated import FlaskReplicated
 
 from config import *
-from forms import LoginForm, PostForm, RegisterForm
+from forms import LoginForm, PostForm, RegisterForm, CommentForm
 from models import Comment, Post, User, Vote, db
 from p2p import P2PNode
 
@@ -39,6 +39,7 @@ login_manager.init_app(app)
 flask_rep = FlaskReplicated(app)
 flask_rep.init_app(app)
 
+
 # Route for the homepage, which shows all the posts
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -50,10 +51,8 @@ def index():
         user_id = current_user.id
         for post in posts:
             content = post['post']
-            vote_query = content.votes.filter(
-                Post.votes.any(
-                    user_id=user_id, post_id=content.id
-                )
+            vote_query = content.votes.filter_by(
+                user_id=user_id, post_id=content.id
             ).all()
             post['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
 
@@ -181,27 +180,55 @@ def create_post():
     return render_template('create_post.html', title='Make a Post', form=form)
 
 
-# Route for upvoting a post or comment
-@app.route('/upvote/<is_post>/<int:id>')
+# Route for creating a new comment
+@app.route('/create_comment/<post_id>', methods=['GET', 'POST'])
 @login_required
-def upvote(is_post, id):
+def create_comment(post_id):
+    form = CommentForm()
+    if form.validate_on_submit():
+        print(form)
+        comment = Comment(
+            content=form.content.data, author=current_user,
+            post_id=post_id, date_posted=datetime.utcnow()
+        )
+        if form.anonymous.data:
+            comment.anonymous = True
+        db.session.add(comment)
+        db.session.commit()
+        print('Comment created')
+    return redirect(url_for('post', post_id=post_id))
+
+
+# Route for upvoting a post or comment
+@app.route('/upvote/<is_post>/<int:post_id>/<int:comment_id>/<on_post_page>')
+@login_required
+def upvote(is_post, post_id, comment_id, on_post_page):
     user_id = current_user.id
 
-    # Determine content class
+    # Converts string to bool, b/c flask routes don't support bool
+    is_post = is_post == 'True'
+    on_post_page = on_post_page == 'True'
+
+    # Determine content class and id
     content_class = Post if is_post else Comment
+    id = post_id if is_post else comment_id
 
     # Update upvotes for the content
     content = content_class.query.get(id)
     if content:
-        vote_query = content.votes.filter(
-            content_class.votes.any(
+        vote_query = \
+            content.votes.filter_by(
                 user_id=user_id, post_id=id
-            )
-        ).all()
+            ).all() \
+            if is_post else \
+            content.votes.filter_by(
+                user_id=user_id, comment_id=id
+            ).all()
+
         new_vote = Vote(
             user_id = user_id,
-            post_id = id if is_post else -1,
-            comment_id = -1 if is_post else id,
+            post_id = post_id if is_post else -1,
+            comment_id = -1 if is_post else comment_id,
             is_upvote = True
         )
 
@@ -225,29 +252,38 @@ def upvote(is_post, id):
         db.session.commit()
         node.broadcast_vote('post' if is_post else 'comment', id, True)
 
-    return redirect(url_for('index'))
+    return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
 
 
-@app.route('/downvote/<is_post>/<int:id>')
+@app.route('/downvote/<is_post>/<int:post_id>/<int:comment_id>/<on_post_page>')
 @login_required
-def downvote(is_post, id):
+def downvote(is_post, post_id, comment_id, on_post_page):
     user_id = current_user.id
 
-    # Determine content class
+    # Converts string to bool, b/c flask routes don't support bool
+    is_post = is_post == 'True'
+    on_post_page = on_post_page == 'True'
+
+    # Determine content class and id
     content_class = Post if is_post else Comment
+    id = post_id if is_post else comment_id
 
     # Update downvotes for the content
     content = content_class.query.get(id)
     if content:
-        vote_query = content.votes.filter(
-            content_class.votes.any(
+        vote_query = \
+            content.votes.filter_by(
                 user_id=user_id, post_id=id
-            )
-        ).all()
+            ).all() \
+            if is_post else \
+            content.votes.filter_by(
+                user_id=user_id, comment_id=id
+            ).all()
+
         new_vote = Vote(
             user_id = user_id,
-            post_id = id if is_post else -1,
-            comment_id = -1 if is_post else id,
+            post_id = post_id if is_post else -1,
+            comment_id = -1 if is_post else comment_id,
             is_upvote = False
         )
 
@@ -269,23 +305,33 @@ def downvote(is_post, id):
         db.session.commit()
         node.broadcast_vote('post' if is_post else 'comment', id, False)
 
-    return redirect(url_for('index'))
+    return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
 
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 def post(post_id):
     post = Post.query.get(post_id)
     if post:
-        form = PostForm()
-        if form.validate_on_submit():
-            comment = Comment(content=form.content.data, post_id=post_id)
-            db.session.add(comment)
-            db.session.commit()
-            return redirect(url_for('post', post_id=post_id))
+        # Display all the comments
+        comments = [
+            {'comment': x} for x in
+            Comment.query
+                .filter_by(post_id=post_id)
+                .order_by(Comment.upvotes.desc()).all()
+        ]
 
-        comments = Comment.query.filter_by(
-            post_id=post_id).order_by(Comment.upvotes.desc()).all()
-        return render_template('post.html', post=post, form=form, comments=comments)
+        # Logic to properly display user upvotes/downvotes
+        if current_user.is_authenticated:
+            user_id = current_user.id
+            for comment in comments:
+                content = comment['comment']
+                vote_query = content.votes.filter_by(
+                    user_id=user_id, comment_id=content.id
+                ).all()
+                comment['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
+
+        return render_template('post.html', post=post, form=CommentForm(), comments=comments, logged_in=current_user.is_authenticated)
+
     return redirect(url_for('index'))
 
 

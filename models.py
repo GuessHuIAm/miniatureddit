@@ -53,6 +53,7 @@ class Comment(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
+    anonymous = db.Column(db.Boolean, default=False)
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     upvotes = db.Column(db.Integer, default=0)
     downvotes = db.Column(db.Integer, default=0)

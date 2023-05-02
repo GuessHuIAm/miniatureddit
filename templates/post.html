@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-  Post
+  Post {{ post.id }}
 {% endblock %}
 
 {% block content %}
@@ -10,12 +10,54 @@
         <h5 class="card-title">{{ post.title }}</h5>
         <p class="card-text">{{ post.content }}</p>
         <p class="card-text">
-        <small class="text-muted">Posted by {{ post.author.username }} on {{ post.date_posted.strftime('%B %d, %Y') }}</small>
+        <small class="text-muted">Posted by {% if post.anonymous %}Anonymous{% else %}{{ post.author.username }}{% endif %} on {{ post.date_posted.strftime('%B %d, %Y') }}</small>
         </p>
         <p class="card-text">
         <small class="text-muted">Upvotes: {{ post.upvotes }}, Downvotes: {{ post.downvotes }}</small>
     </div>
 </div>
 
-{% for comment in comments %}{# TODO #}{% endfor %}
+{% if logged_in %}
+<div class="card mb-3">
+    <div class="row">
+        <div class="col-md-6">
+          <form method="post" action="{{ url_for('create_comment', post_id=post.id) }}" class="form-horizontal">
+            {{ form.csrf_token }}
+            <div class="form-group">
+              {{ form.content.label(class="form-label") }}
+              {{ form.content(class="form-control") }}
+              {% for error in form.content.errors %}
+                <span class="text-danger">{{ error }}</span>
+              {% endfor %}
+            </div>
+            <div class="form-group form-check">
+              {{ form.anonymous.label(class="form-check-label") }}
+              {{ form.anonymous(class="form-check-input") }}
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% for comment in comments %}
+<div class="card mb-3">
+    <div class="card-body">
+        <p class="card-text">{{ comment.comment.content }}</p>
+        <p class="card-text">
+            <small class="text-muted">Comment by {% if comment.comment.anonymous %}Anonymous{% else %}{{ comment.comment.author.username }}{% endif %} on {{ comment.comment.date_posted.strftime('%B %d, %Y') }}</small>
+        </p>
+        <p class="card-text">
+        <small class="text-muted">Upvotes: {{ comment.comment.upvotes }}, Downvotes: {{ comment.comment.downvotes }}</small>
+        </p>
+        {% if logged_in %}
+            <a href="{{ url_for('upvote', post_id = comment.comment.post_id, comment_id = comment.comment.id, is_post = false, on_post_page = true) }}"
+                class="btn {% if comment.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
+            <a href="{{ url_for('downvote', post_id = comment.comment.post_id, comment_id = comment.comment.id, is_post = false, on_post_page = true) }}"
+                class="btn {% if comment.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

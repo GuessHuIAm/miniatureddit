@@ -12,9 +12,14 @@ class RegisterForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Sign up')
-    
+
 class PostForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
     content = TextAreaField('Content', validators=[DataRequired()])
+    anonymous = BooleanField('Anonymous')
+    submit = SubmitField('Submit')
+
+class CommentForm(FlaskForm):
+    content = TextAreaField('Comment', validators=[DataRequired()])
     anonymous = BooleanField('Anonymous')
     submit = SubmitField('Submit')

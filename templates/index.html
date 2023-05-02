@@ -30,8 +30,10 @@
               <small class="text-muted">Upvotes: {{ post.post.upvotes }}, Downvotes: {{ post.post.downvotes }}</small>
             </p>
             {% if logged_in %}
-              <a href="{{ url_for('upvote', id = post.post.id, is_post = true) }}" class="btn {% if post.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
-              <a href="{{ url_for('downvote', id = post.post.id, is_post = true) }}" class="btn {% if post.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
+              <a href="{{ url_for('upvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = false) }}"
+                class="btn {% if post.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
+              <a href="{{ url_for('downvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = false) }}"
+                class="btn {% if post.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
             {% endif %}
             <a href="{{ url_for('post', post_id = post.post.id) }}" class="btn btn-primary">View Post</a>
           </div>
