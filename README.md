@@ -1,3 +1,4 @@
 # MiniatuReddit
-By Jonathan Luo, Matt Kiley, and Michael Hu
+
+An text sharing platform implemented in a P2P manner.
 

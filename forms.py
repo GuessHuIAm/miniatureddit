@@ -20,6 +20,6 @@ class PostForm(FlaskForm):
     submit = SubmitField('Submit')
 
 class CommentForm(FlaskForm):
-    content = TextAreaField('Comment', validators=[DataRequired()])
+    content = TextAreaField('Make a Comment', validators=[DataRequired()])
     anonymous = BooleanField('Anonymous')
     submit = SubmitField('Submit')

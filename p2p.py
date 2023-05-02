@@ -5,9 +5,12 @@ from gossip import GossipProtocol
 
 
 class P2PNode:
-    def __init__(self):
-        self.gossip_protocol = GossipProtocol()
-        self.peers = []
+    def __init__(self, self_ip, self_port, other_ip='None', other_port='None'):
+        self.gossip_protocol = GossipProtocol(self_ip, self_port)
+        if not (other_ip == 'None' or other_port == 'None'):
+            self.gossip_protocol.add_peer(other_ip, other_port)
+            
+        print("P2PNode initialized, with peers: ", self.gossip_protocol.peers)
 
     def broadcast_post(self, post):
         data = {

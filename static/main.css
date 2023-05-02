@@ -54,9 +54,13 @@ p {
 
 /* Cards */
 .card {
-  border-radius: 0;
+  border-radius: 3;
   border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alt {
+  background-color: #a0a0a0;
 }
 
 .card-title {

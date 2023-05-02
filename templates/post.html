@@ -24,10 +24,7 @@
     </div>
 </div>
 
-<div class="card mb-3">
-  <div class="card-body">
-  <h6 class="card-title">Comments</h6>
-  </div>
+<div class="card mb-3 alt">
 {% if logged_in %}
 <div class="card-body">
     <div class="row">
@@ -68,6 +65,6 @@
                 class="btn {% if comment.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
         {% endif %}
     </div>
-</div>
 {% endfor %}
+</div>
 {% endblock %}

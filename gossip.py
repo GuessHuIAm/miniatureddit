@@ -5,10 +5,13 @@ from config import *
 
 
 class GossipProtocol:
-    def __init__(self):
+    def __init__(self, self_ip, self_port, other_ip=None, other_port=None):
         # Sets up a UDP socket listener on a specified port
         self.peers = []
         self.stop_flag = False
+        
+        # Add the other node as a peer if it is specified
+        
 
         # Start the listener thread for incoming messages
         self.listener_thread = threading.Thread(target=self.listener)

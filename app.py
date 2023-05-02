@@ -1,6 +1,8 @@
 from datetime import datetime
 from functools import wraps
 from multiprocessing import Process
+from ipaddress import ip_address
+import inquirer
 
 from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_login import (LoginManager, current_user, login_required,
@@ -12,6 +14,7 @@ from forms import LoginForm, PostForm, RegisterForm, CommentForm
 from models import Comment, Post, User, Vote, db
 from p2p import P2PNode
 
+
 CONFIG_FILE = 'config.py'
 SERVER_HIERARCHY = [
     (HOST, PORT),
@@ -19,8 +22,25 @@ SERVER_HIERARCHY = [
     (REP_2_HOST, REP_2_PORT)
 ]
 
+def validate_ip(addr):
+    """Validates an IP address without noisy ValueError"""
+    try:
+        if addr == "None":
+            return True
+        ip_address(addr)
+    except:
+        raise inquirer.errors.ValidationError("", reason=f"Your input is not an IPV4 or IPV6 address.")
+    return True
+
+questions = [inquirer.Text('ip', message="What is the IP address of another node in the network?",
+             validate=lambda _, x: validate_ip(x)),
+             inquirer.Text('port', message="What is the port you want to use to connect to the network?")]
+
+answers = inquirer.prompt(questions, raise_keyboard_interrupt=True)
+addr, port = answers['ip'], answers['port']
+
 # Initialize the P2P node
-node = P2PNode()
+node = P2PNode(HOST, PORT, addr, port)
 
 # Initialize the Flask application
 app = Flask(__name__)
