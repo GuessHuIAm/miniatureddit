@@ -19,6 +19,8 @@ SERVER_HIERARCHY = [
     (REP_2_HOST, REP_2_PORT)
 ]
 
+# Initialize the P2P node
+node = P2PNode()
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -27,9 +29,6 @@ app.config.from_pyfile(CONFIG_FILE)
 db.init_app(app)
 with app.app_context():
     db.create_all()  # Create the database tables for our data models, if they do not exist
-
-# Initialize the P2P node
-node = P2PNode()
 
 # Initialize the login manager
 login_manager = LoginManager()
@@ -307,8 +306,8 @@ def downvote(is_post, post_id, comment_id, on_post_page):
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 def post(post_id):
-    post = Post.query.get(post_id)
-    if post:
+    post = {'post': Post.query.get(post_id)}
+    if post['post']:
         # Display all the comments
         comments = [
             {'comment': x} for x in
@@ -320,6 +319,10 @@ def post(post_id):
         # Logic to properly display user upvotes/downvotes
         if current_user.is_authenticated:
             user_id = current_user.id
+            vote_query = post['post'].votes.filter_by(
+                user_id=user_id, post_id=post['post'].id
+            ).all()
+            post['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
             for comment in comments:
                 content = comment['comment']
                 vote_query = content.votes.filter_by(

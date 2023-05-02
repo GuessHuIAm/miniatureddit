@@ -7,28 +7,32 @@
 {% block content %}
 <div class="card mb-3">
     <div class="card-body">
-        <h5 class="card-title">{{ post.title }}</h5>
-        <p class="card-text">{{ post.content }}</p>
+        <h5 class="card-title">{{ post.post.title }}</h5>
+        <p class="card-text">{{ post.post.content }}</p>
         <p class="card-text">
-        <small class="text-muted">Posted by {% if post.anonymous %}Anonymous{% else %}{{ post.author.username }}{% endif %} on {{ post.date_posted.strftime('%B %d, %Y') }}</small>
+        <small class="text-muted">Posted by {% if post.post.anonymous %}Anonymous{% else %}{{ post.post.author.username }}{% endif %} on {{ post.post.date_posted.strftime('%B %d, %Y') }}</small>
         </p>
         <p class="card-text">
-        <small class="text-muted">Upvotes: {{ post.upvotes }}, Downvotes: {{ post.downvotes }}</small>
-
+        <small class="text-muted">Upvotes: {{ post.post.upvotes }}, Downvotes: {{ post.post.downvotes }}</small>
+        </p>
         {% if logged_in %}
-            <a href="{{ url_for('upvote', post_id = post.id, comment_id = 0, is_post = true, on_post_page = true) }}"
+            <a href="{{ url_for('upvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = true) }}"
                 class="btn {% if post.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
-            <a href="{{ url_for('downvote', post_id = post.id, comment_id = 0, is_post = true, on_post_page = true) }}"
+            <a href="{{ url_for('downvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = true) }}"
                 class="btn {% if post.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
         {% endif %}
     </div>
 </div>
 
-{% if logged_in %}
 <div class="card mb-3">
+  <div class="card-body">
+  <h6 class="card-title">Comments</h6>
+  </div>
+{% if logged_in %}
+<div class="card-body">
     <div class="row">
         <div class="col-md-6">
-          <form method="post" action="{{ url_for('create_comment', post_id=post.id) }}" class="form-horizontal">
+          <form method="post" action="{{ url_for('create_comment', post_id=post.post.id) }}" class="form-horizontal">
             {{ form.csrf_token }}
             <div class="form-group">
               {{ form.content.label(class="form-label") }}
@@ -49,7 +53,6 @@
 {% endif %}
 
 {% for comment in comments %}
-<div class="card mb-3">
     <div class="card-body">
         <p class="card-text">{{ comment.comment.content }}</p>
         <p class="card-text">

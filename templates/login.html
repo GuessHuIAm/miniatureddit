@@ -6,6 +6,7 @@
 
 {% block content %}
   <h1>Sign In</h1>
+  <p>
   <form method="post" action="{{ url_for('login') }}">
     {{ form.hidden_tag() }}
     <div class="form-group">
@@ -31,8 +32,9 @@
         {% endif %}
       {% endwith %}
     </div>
+    </p>
     <button type="submit" class="btn btn-primary">Login</button>
-    Don't have an account?
+  &nbsp;Don't have an account?
     <a href="{{ url_for('register') }}">Register</a>
   </form>
 {% endblock %}
