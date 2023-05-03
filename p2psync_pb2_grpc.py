@@ -21,7 +21,7 @@ class P2PSyncStub(object):
                 )
         self.ListenCommands = channel.unary_stream(
                 '/P2PSync/ListenCommands',
-                request_serializer=p2psync__pb2.Peer.SerializeToString,
+                request_serializer=p2psync__pb2.Empty.SerializeToString,
                 response_deserializer=p2psync__pb2.DatabaseCommand.FromString,
                 )
         self.Connect = channel.unary_unary(
@@ -36,8 +36,8 @@ class P2PSyncStub(object):
                 )
         self.SendCommand = channel.unary_unary(
                 '/P2PSync/SendCommand',
-                request_serializer=p2psync__pb2.Peer.SerializeToString,
-                response_deserializer=p2psync__pb2.DatabaseCommand.FromString,
+                request_serializer=p2psync__pb2.DatabaseCommand.SerializeToString,
+                response_deserializer=p2psync__pb2.Empty.FromString,
                 )
 
 
@@ -84,7 +84,7 @@ def add_P2PSyncServicer_to_server(servicer, server):
             ),
             'ListenCommands': grpc.unary_stream_rpc_method_handler(
                     servicer.ListenCommands,
-                    request_deserializer=p2psync__pb2.Peer.FromString,
+                    request_deserializer=p2psync__pb2.Empty.FromString,
                     response_serializer=p2psync__pb2.DatabaseCommand.SerializeToString,
             ),
             'Connect': grpc.unary_unary_rpc_method_handler(
@@ -99,8 +99,8 @@ def add_P2PSyncServicer_to_server(servicer, server):
             ),
             'SendCommand': grpc.unary_unary_rpc_method_handler(
                     servicer.SendCommand,
-                    request_deserializer=p2psync__pb2.Peer.FromString,
-                    response_serializer=p2psync__pb2.DatabaseCommand.SerializeToString,
+                    request_deserializer=p2psync__pb2.DatabaseCommand.FromString,
+                    response_serializer=p2psync__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -141,7 +141,7 @@ class P2PSync(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_stream(request, target, '/P2PSync/ListenCommands',
-            p2psync__pb2.Peer.SerializeToString,
+            p2psync__pb2.Empty.SerializeToString,
             p2psync__pb2.DatabaseCommand.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -192,7 +192,7 @@ class P2PSync(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/P2PSync/SendCommand',
-            p2psync__pb2.Peer.SerializeToString,
-            p2psync__pb2.DatabaseCommand.FromString,
+            p2psync__pb2.DatabaseCommand.SerializeToString,
+            p2psync__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
