@@ -70,7 +70,7 @@
 {% macro render_comments(comments) %}
     {% for comment in comments %}
         <div class="card mb-3">
-          {% if comment.deleted %}
+          {% if comment.comment.deleted %}
             <div class="card-body">
                 <p class="card-text">[deleted]</p>
             </div>
@@ -85,10 +85,10 @@
                 </p>
                 {% if logged_in %}
                     <a href="{{ url_for('upvote', post_id=comment.comment.post_id, comment_id=comment.comment.id, is_post=False, on_post_page=True) }}"
-                        class="btn {% if comment.comment.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
+                        class="btn {% if comment.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
                     <a href="{{ url_for('downvote', post_id=comment.comment.post_id, comment_id=comment.comment.id, is_post=False, on_post_page=True) }}"
-                        class="btn {% if comment.comment.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
-                    {% if comment.author_id == current_user.id %}
+                        class="btn {% if comment.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
+                    {% if comment.comment.author_id == current_user.id %}
                         <a href="{{ url_for('delete_comment', comment_id=comment.comment.id) }}" class="btn btn-danger">Delete</a>
                     {% endif %}
                     <a href="#" class="btn btn-secondary create-comment-link" comment-id="{{ comment.comment.id }}">Reply</a>
