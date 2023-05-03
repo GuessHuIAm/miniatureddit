@@ -15,6 +15,25 @@
         </ul>
       {% endif %}
     {% endwith %}
+    {% if query %}
+      <div class="col-md-12 mb-3">
+        <h3>Search Results for "{{ query }}"</h3>
+      </div>
+    {% else %}
+      <div class="col-md-12 mb-3">
+        <h1>All Posts</h1>
+      </div>
+    {% endif %}
+    {% if posts == []%}
+      {% if query %}
+        <div class="col-md-12 mb-3">
+          <h4>No posts found.</h4>
+        </div>
+        {% else %}
+        <div class="col-md-12 mb-3">
+          <h4>No posts yet. Be the first to post!</h4>
+      {% endif %}
+    {% endif %}
     {% for post in posts %}
       <div class="col-md-6 mb-3">
         <div class="card">

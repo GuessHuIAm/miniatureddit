@@ -15,8 +15,10 @@
       <div class="container">
         <a class="navbar-brand bar" href="{{ url_for('index') }}">
           <img src="{{ url_for('static', filename='icon.png') }}" alt="icon" class="mr-2"/>
-          MiniatuReddit </a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon">HIII</button>
+          MiniatuReddit 
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon">HIII</button>
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav mr-auto">
             {% if current_user.is_authenticated %}
@@ -36,8 +38,17 @@
             {% endif %}
           </ul>
         </div>
+          <form class="form-inline ml-auto" action="{{ url_for('index') }}">
+            <div class="input-group">
+              <input class="form-control" type="text" placeholder="Search for a post..." name="query">
+              <div class="input-group-append">
+                <button class="btn btn-outline-light" height="100%" type="submit">Search</button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
-    </nav>
+    </nav>    
 
     <div class="container py-3">
       {% block content %}
