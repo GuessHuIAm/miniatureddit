@@ -32,6 +32,7 @@ class GossipProtocol:
             with open(self.COMMIT_LOG_FILE, "r") as f:
                 self.commit_counter = int(f.readlines()[-1].split("|")[0])
         else:
+            open(self.COMMIT_LOG_FILE, 'w').close()
             self.commit_counter = 0
 
         if peers:
@@ -44,10 +45,10 @@ class GossipProtocol:
         global peers
         while True:
             for peer in peers:
-                try:
-                    new_logs = self.receive_commit_log(peer)
-                except:
-                    continue
+                # try:
+                new_logs = self.receive_commit_log(peer)
+                # except:
+                #     continue
 
                 # Update database with commit log
                 if new_logs:
@@ -63,29 +64,29 @@ class GossipProtocol:
 
     def receive_commit_log(self, peer):
         # Receive commit log from peer
-        try:
-            host, port = peer.host, peer.port
-            stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
-            response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
+        # try:
+        host, port = peer.host, peer.port
+        stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
+        response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
 
-            new_logs = []
-            counter = self.commit_counter
+        new_logs = []
+        counter = self.commit_counter
 
-            for res in response_iterator:
-                timestamp, command = res.timestamp, res.command
+        for res in response_iterator:
+            timestamp, command = res.timestamp, res.command
 
-                if int(timestamp) > counter:
-                    # Add the commit to the list of new commits
-                    new_logs.append(f'{timestamp}|{command[:-1]}')
+            if int(timestamp) > counter:
+                # Add the commit to the list of new commits
+                new_logs.append(f'{timestamp}|{command[:-1]}')
 
-                    # Update the counter variable
-                    counter = int(timestamp)
+                # Update the counter variable
+                counter = int(timestamp)
 
-            return new_logs
+        return new_logs
 
-        except Exception:
-            print("Could not receive file.")
-            return None
+        # except Exception:
+        #     print("Could not receive file.")
+        #     return None
 
 
     def update_database(self, new_logs, session, context):
