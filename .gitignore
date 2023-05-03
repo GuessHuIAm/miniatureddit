@@ -2,4 +2,8 @@ __pycache__
 .vscode
 .env
 instance
+<<<<<<< HEAD
 commit_*
+=======
+commit*.txt
+>>>>>>> 53b484e54957a1c285ca38ea3cae104ebd943386
