@@ -333,27 +333,33 @@ def upvote(is_post, post_id, comment_id, on_post_page):
             comment_id = -1 if is_post else comment_id,
             is_upvote = True
         )
-        
-        db.session.add(new_vote)
 
         # If a user has a vote in the database, they have already voted
         has_voted = len(vote_query) > 0
         if has_voted:
             vote = vote_query[0]
-            content.votes.remove(vote)
+            db.session.delete(vote)
+            db.session.commit()
             if vote.is_upvote:
                 # Remove the vote from the database
-                content.upvotes -= 1
                 node.broadcast_delete_vote(vote)
+                
+                content.upvotes -= 1
             else:
                 # Swap from downvote to upvote
+                db.session.add(new_vote)
+                db.session.commit()
                 content.votes.append(new_vote)
+                node.broadcast_vote(new_vote)
+                
                 content.upvotes += 1
                 content.downvotes -= 1
-                node.broadcast_vote(new_vote)
 
         # Else, register upvote
         else:
+            db.session.add(new_vote)
+            db.session.commit()
+            
             content.votes.append(new_vote)
             content.upvotes += 1
             node.broadcast_vote(new_vote)
@@ -401,24 +407,31 @@ def downvote(is_post, post_id, comment_id, on_post_page):
         has_voted = len(vote_query) > 0
         if has_voted:
             vote = vote_query[0]
-            content.votes.remove(vote)
+            db.session.delete(vote)
+            db.session.commit()
             if not vote.is_upvote:
                 # Remove the vote from the database
-                content.downvotes -= 1
                 node.broadcast_delete_vote(vote)
+                
+                content.downvotes -= 1
             else:
                 # Swap from downvote to upvote
+                db.session.add(new_vote)
+                db.session.commit()
                 content.votes.append(new_vote)
+                node.broadcast_vote(new_vote)
+                
                 content.downvotes += 1
                 content.upvotes -= 1
-                node.broadcast_vote(new_vote)
 
         # Else, register upvote
         else:
+            db.session.add(new_vote)
+            db.session.commit()
             content.votes.append(new_vote)
             content.downvotes += 1
             node.broadcast_vote(new_vote)
-
+            
         db.session.commit()
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
