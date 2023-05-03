@@ -69,6 +69,7 @@ class GossipProtocol:
 
     def receive_commit_log(self, peer):
         # Receive commit log from peer
+        global commit_counter
         try:
             host, port = peer.host, peer.port
             stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
