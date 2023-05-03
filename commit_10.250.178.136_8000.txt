@@ -1,0 +1,1 @@
+1|INSERT INTO user (id, username, password_hash, date_created) VALUES                     (3, 'test', '$pbkdf2-sha256$100000$yHmv9Z5zznmPUWqNsVbKWQ$b4Xfa9b9y8hIyE/t3LAwbnh0TSmKabI2y5JzOa6Shwo', '2023-05-03 07:12:59.975449');

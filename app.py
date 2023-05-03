@@ -90,8 +90,10 @@ flask_rep.init_app(app)
 # Route for the homepage, which shows all the posts
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # Display all the posts
+    query = request.args.get('query')
     posts = [{'post': x} for x in Post.query.filter_by(deleted=False).order_by(Post.upvotes.desc()).all()]
+    if query:
+        posts = [{'post': x} for x in Post.query.filter(Post.title.contains(query) | Post.content.contains(query)).filter_by(deleted=False).order_by(Post.upvotes.desc()).all()]
 
     # Logic to properly display user upvotes/downvotes
     if current_user.is_authenticated:
@@ -108,7 +110,7 @@ def index():
         'index.html',
         posts=posts,
         logged_in=current_user.is_authenticated,
-    )
+        query=query)
 
 
 # This callback is used to reload the user object from the user ID stored in the session

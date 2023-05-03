@@ -113,3 +113,18 @@ a:active { text-decoration: none; }
 .bar img {
   height: 3rem;
 }
+
+#navbarMenu .input-group {
+  margin-left: 40px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.input-group .btn {
+  height: 100%;
+}
+
+.input-group {
+  border-radius: 0;
+}
