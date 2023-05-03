@@ -9,7 +9,6 @@ import sys
 from flask import Flask, flash, redirect, render_template, request, url_for, session
 from flask_login import (LoginManager, current_user, login_required,
                          login_user, logout_user)
-from flask_replicated import FlaskReplicated
 
 from config import *
 from forms import LoginForm, PostForm, RegisterForm, CommentForm
@@ -22,11 +21,6 @@ import p2psync_pb2 as pb2
 import p2psync_pb2_grpc as pb2_grpc
 
 CONFIG_FILE = 'config.py'
-SERVER_HIERARCHY = [
-    (HOST, PORT),
-    (REP_1_HOST, REP_1_PORT),
-    (REP_2_HOST, REP_2_PORT)
-]
 
 def validate_ip(addr):
     """Validates an IP address without noisy ValueError"""
@@ -55,7 +49,7 @@ while True:
     # Check to see if the IP address and port represent an active P2PNode
     stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{addr}:{port}'))
     try:
-        stub.Connect(request=pb2.Peer(host=addr, port=port))
+        stub.Connect(request=pb2.Peer(host=HOST, port=PORT))
         break
     except grpc._channel._InactiveRpcError:
         print('Error: The IP address and port you provided does not refer to an active node.')
@@ -81,10 +75,6 @@ print(f'P2PNode server started on host {HOST} and port {PORT}')
 # Initialize the login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
-
-# Initialized flask replicator
-flask_rep = FlaskReplicated(app)
-flask_rep.init_app(app)
 
 
 # Route for the homepage, which shows all the posts
@@ -352,7 +342,7 @@ def upvote(is_post, post_id, comment_id, on_post_page):
         else:
             db.session.add(new_vote)
             db.session.commit()
-            
+
             content.votes.append(new_vote)
             node.broadcast_vote(new_vote)
 
@@ -417,7 +407,7 @@ def downvote(is_post, post_id, comment_id, on_post_page):
             db.session.commit()
             content.votes.append(new_vote)
             node.broadcast_vote(new_vote)
-            
+
         db.session.commit()
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
@@ -438,7 +428,7 @@ def post(post_id):
         is_upvote = vote_query[0].is_upvote if len(vote_query) > 0 else None
         comment['is_upvote'] = is_upvote
         [add_is_upvote(child) for child in comment['children']]
-        
+
 
     post = {'post': Post.query.get(post_id)}
     if post['post']:
