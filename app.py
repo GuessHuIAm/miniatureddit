@@ -241,7 +241,6 @@ def create_post():
 def create_comment(post_id, parent_id=None):
     form = CommentForm()
     if form.validate_on_submit():
-        print(form)
         if parent_id:
             parent_id = int(parent_id)
             comment = Comment(
@@ -258,7 +257,6 @@ def create_comment(post_id, parent_id=None):
         db.session.add(comment)
         db.session.commit()
         node.broadcast_comment(comment)
-        print('Comment created')
     return redirect(url_for('post', post_id=post_id))
 
 
@@ -431,7 +429,7 @@ def post(post_id):
         """Returns a dictionary representing the comment and all its descendants."""
         return {
             'comment': comment,
-            'children': [get_comment_tree(child, user_id) for child in comment.children],
+            'children': [get_comment_tree(child) for child in comment.children],
         }
 
     def add_is_upvote(comment):
