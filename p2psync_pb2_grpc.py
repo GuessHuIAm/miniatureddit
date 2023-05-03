@@ -14,10 +14,10 @@ class P2PSyncStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.GetPeerList = channel.unary_stream(
-                '/P2PSync/GetPeerList',
+        self.PeerListUpdate = channel.unary_unary(
+                '/P2PSync/PeerListUpdate',
                 request_serializer=p2psync__pb2.Empty.SerializeToString,
-                response_deserializer=p2psync__pb2.PeerList.FromString,
+                response_deserializer=p2psync__pb2.PeerUpdate.FromString,
                 )
         self.ListenCommands = channel.unary_stream(
                 '/P2PSync/ListenCommands',
@@ -44,7 +44,7 @@ class P2PSyncStub(object):
 class P2PSyncServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def GetPeerList(self, request, context):
+    def PeerListUpdate(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -77,10 +77,10 @@ class P2PSyncServicer(object):
 
 def add_P2PSyncServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'GetPeerList': grpc.unary_stream_rpc_method_handler(
-                    servicer.GetPeerList,
+            'PeerListUpdate': grpc.unary_unary_rpc_method_handler(
+                    servicer.PeerListUpdate,
                     request_deserializer=p2psync__pb2.Empty.FromString,
-                    response_serializer=p2psync__pb2.PeerList.SerializeToString,
+                    response_serializer=p2psync__pb2.PeerUpdate.SerializeToString,
             ),
             'ListenCommands': grpc.unary_stream_rpc_method_handler(
                     servicer.ListenCommands,
@@ -113,7 +113,7 @@ class P2PSync(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def GetPeerList(request,
+    def PeerListUpdate(request,
             target,
             options=(),
             channel_credentials=None,
@@ -123,9 +123,9 @@ class P2PSync(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/P2PSync/GetPeerList',
+        return grpc.experimental.unary_unary(request, target, '/P2PSync/PeerListUpdate',
             p2psync__pb2.Empty.SerializeToString,
-            p2psync__pb2.PeerList.FromString,
+            p2psync__pb2.PeerUpdate.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

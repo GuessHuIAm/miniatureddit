@@ -28,11 +28,6 @@ class GossipProtocol:
         # Stop flag
         self.stop_flag = False
 
-        # Start listener threads for incoming peers
-        if peers:
-            self.listener_threads = [threading.Thread(target=self.listen_peers, args=(peers[0],))]
-            self.listener_threads[0].start()
-
         # Get the last commit number
         global commit_counter
         commit_counter = 0
@@ -43,28 +38,28 @@ class GossipProtocol:
             open(COMMIT_LOG_FILE, 'w').close()
 
         # Update current commit log with any of the other peers' commit logs
-        self.load_commits()
+        if peers:
+            self.load_commits()
 
 
     def load_commits(self):
         global peers
-        if peers:
-            for peer in peers:
-                try:
-                    new_logs = self.receive_commit_log(peer)
-                except grpc._channel._InactiveRpcError:
-                    continue
+        for peer in peers:
+            try:
+                new_logs = self.receive_commit_log(peer)
+            except grpc._channel._InactiveRpcError:
+                continue
 
-                # Update database with commit log
-                if new_logs:
-                    self.update_database(new_logs)
+            # Update database with commit log
+            if new_logs:
+                self.update_database(new_logs)
 
-                # Exit loop if we get new logs successfully
-                break
+            # Exit loop if we get new logs successfully
+            break
 
-            else:
-                # If the loop completes without finding any updates, raise an exception
-                raise Exception("Not able to update database. Please check your connection and try again.")
+        else:
+            # If the loop completes without finding any updates, raise an exception
+            raise Exception("Not able to update database. Please check your connection and try again.")
 
 
     def receive_commit_log(self, peer):
@@ -110,18 +105,6 @@ class GossipProtocol:
                 commit_counter = int(commit_num)
 
 
-    def listen_peers(self, peer):
-        '''Updates peers constantly '''
-        host, port = peer.host, peer.port
-        stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
-        peers_stream = stub.GetPeerList(pb2.Empty())
-        for p in peers_stream:
-            if self.stop_flag:
-                break
-            global peers
-            peers = p.peers  # TODO: Verify that this works as intended
-
-
     def broadcast(self, command):
         '''Broadcasts a command to all peers in the network, and updates the commit log'''
         global commit_counter
@@ -138,23 +121,17 @@ class GossipProtocol:
 
     def stop(self):
         self.stop_flag = True
-        for t in self.listener_threads:
-            t.join()
-        self.commit_listener_thread.join()
 
 
 class P2PSyncServer(pb2_grpc.P2PSyncServicer):
-    def __init__(self):
-        self.peers_edited = True
-
-
-    def GetPeerList(self, request, context):
+    def PeerListUpdate(self, request, context):
         """Send stream of peer lists to client"""
-        while True:
-            if self.peers_edited:
-                self.peers_edited = False
-                global peers
-                yield pb2.PeerList(peers=peers)
+        peer, add = request.peer, request.add
+        global peers
+        if add:
+            peers.append(peer)
+        else:
+            peers.remove(peer)
 
 
     def ListenCommands(self, request, context):
@@ -169,24 +146,28 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
     def Connect(self, request, context):
         '''Receive connection from other P2PNode'''
         host, port = request.host, request.port
+        peer = pb2.Peer(host=host, port=port)
         global peers
-        peers.append(pb2.Peer(host=host, port=port))
-        self.peers_edited = True
+        self.broadcast_peer_update(peers, peer, True)
+        peers.append(peer)
 
         # Start continuous heartbeat with new peer node
         threading.Thread(target=self.heartbeat_peer, args=(host, port,)).start()
 
         return pb2.Empty()
 
+
     def Heartbeat(self, request, context):
         '''Heartbeat'''
         return pb2.Empty()
+
 
     def SendCommand(self, request, context):
         '''Register a command in the commit log and database if is greater than own commit counter'''
         timestamp, command = request.timestamp, request.command
 
         # If timestamp is greater than own commit counter, update commit log
+        global commit_counter
         if timestamp > commit_counter:
             # Execute the command
             global CONTEXT
@@ -202,6 +183,7 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
 
         return pb2.Empty()
 
+
     def heartbeat_peer(self, host, port):
         '''Continuous heartbeat to peer at (host, port)'''
         stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
@@ -213,8 +195,15 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
 
         # Remove peer if heartbeat fails
         global peers
-        peers.remove(pb2.Peer(host=host, port=port))
-        self.peers_edited = True
+        peer = pb2.Peer(host=host, port=port)
+        peers.remove(peer)
+        self.broadcast_peer_update(peers, peer, False)
 
 
-
+    def broadcast_peer_update(self, peers, peer, add):
+        '''Broadcast peer update for Peer peer depending on
+           whether or not it was added (add=True) or removed (add=False)'''
+        for p in peers:
+            host, port = p.host, p.port
+            stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
+            stub.PeerListUpdate(pb2.PeerUpdate(peer=peer, add=add))

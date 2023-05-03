@@ -49,7 +49,7 @@ while True:
     # Check to see if the IP address and port represent an active P2PNode
     stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{addr}:{port}'))
     try:
-        stub.Heartbeat(pb2.Empty())
+        stub.Connect(pb2.Peer(host=HOST, port=str(PORT)))
         break
     except grpc._channel._InactiveRpcError:
         print('Error: The IP address and port you provided does not refer to an active node.')

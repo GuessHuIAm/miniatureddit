@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 service P2PSync{
-    rpc GetPeerList(Empty) returns (stream PeerList) {}
+    rpc PeerListUpdate(Empty) returns (PeerUpdate) {}
     rpc ListenCommands(Empty) returns (stream DatabaseCommand) {}
     rpc Connect(Peer) returns (Empty) {}
     rpc Heartbeat(Empty) returns (Empty) {}
@@ -11,8 +11,9 @@ service P2PSync{
 message Empty {
 }
 
-message PeerList {
-    repeated Peer peers = 1;
+message PeerUpdate {
+    Peer peer = 1;
+    bool add = 2;
 }
 
 message Peer {
