@@ -10,7 +10,13 @@ import grpc
 
 class GossipProtocol:
     def __init__(self, self_ip, self_port, other_ip, other_port, session, context):
-        self.COMMIT_LOG_FILE = f'commit_{self_ip}_{self_port}.txt'
+        global SESSION
+        SESSION = session
+        global CONTEXT
+        CONTEXT = context
+
+        global COMMIT_LOG_FILE
+        COMMIT_LOG_FILE = f'commit_{self_ip}_{self_port}.txt'
 
         # Sets up a UDP socket listener on a specified port
         global peers
@@ -28,38 +34,37 @@ class GossipProtocol:
             self.listener_threads[0].start()
 
         # Get the last commit number
-        if path.exists(self.COMMIT_LOG_FILE):
-            with open(self.COMMIT_LOG_FILE, "r") as f:
-                self.commit_counter = int(f.readlines()[-1].split("|")[0])
+        global commit_counter
+        commit_counter = 0
+        if path.exists(COMMIT_LOG_FILE):
+            with open(COMMIT_LOG_FILE, "r") as f:
+                commit_counter = int(f.readlines()[-1].split("|")[0])
         else:
-            open(self.COMMIT_LOG_FILE, 'w').close()
-            self.commit_counter = 0
+            open(COMMIT_LOG_FILE, 'w').close()
 
-        # Constantly update current commit log with any of the other peers' commit logs
-        self.commit_listener_thread = threading.Thread(target=self.listen_commits, args=(session, context))
-        self.commit_listener_thread.start()
+        # Update current commit log with any of the other peers' commit logs
+        self.load_commits()
 
 
-    def listen_commits(self, session, context):
+    def load_commits(self):
         global peers
-        while True:
-            if peers:
-                for peer in peers:
-                    try:
-                        new_logs = self.receive_commit_log(peer)
-                    except grpc._channel._InactiveRpcError:
-                        continue
+        if peers:
+            for peer in peers:
+                try:
+                    new_logs = self.receive_commit_log(peer)
+                except grpc._channel._InactiveRpcError:
+                    continue
 
-                    # Update database with commit log
-                    if new_logs:
-                        self.update_database(new_logs, session, context)
+                # Update database with commit log
+                if new_logs:
+                    self.update_database(new_logs)
 
-                    # Exit loop if we get new logs successfully
-                    break
+                # Exit loop if we get new logs successfully
+                break
 
-                else:
-                    # If the loop completes without finding any updates, raise an exception
-                    raise Exception("Not able to update database. Please check your connection and try again.")
+            else:
+                # If the loop completes without finding any updates, raise an exception
+                raise Exception("Not able to update database. Please check your connection and try again.")
 
 
     def receive_commit_log(self, peer):
@@ -70,7 +75,7 @@ class GossipProtocol:
             response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
 
             new_logs = []
-            counter = self.commit_counter
+            counter = commit_counter
             for res in response_iterator:
                 timestamp, command = res.timestamp, res.command
 
@@ -88,20 +93,20 @@ class GossipProtocol:
             return None
 
 
-    def update_database(self, new_logs, session, context):
+    def update_database(self, new_logs):
         '''Get the database up to date with the commit log,
-        starting from the last commit number, self.commit_counter'''
+        starting from the last commit number, commit_counter'''
         for line in new_logs:
             commit_num, commit = line.split("|")
-            if int(commit_num) > self.commit_counter:
+            if int(commit_num) > commit_counter:
                 # Execute the commit
-                with context:
-                    session.execute(text(commit))
-                    session.commit()
+                with CONTEXT:
+                    SESSION.execute(text(commit))
+                    SESSION.commit()
                 # Update the counter
-                with open(self.COMMIT_LOG_FILE, "a") as f:
+                with open(COMMIT_LOG_FILE, "a") as f:
                     f.write(f"{str(commit_num)}|{commit}\n")
-                self.commit_counter = int(commit_num)
+                commit_counter = int(commit_num)
 
 
     def listen_peers(self, peer):
@@ -118,9 +123,15 @@ class GossipProtocol:
 
     def broadcast(self, command):
         '''Broadcasts a command to all peers in the network, and updates the commit log'''
-        with open(self.COMMIT_LOG_FILE, "a") as f:
-            f.write(f"{str(self.commit_counter + 1)}|{command}\n")
-        self.commit_counter += 1
+        commit_counter += 1
+        with open(COMMIT_LOG_FILE, "a") as f:
+            f.write(f"{commit_counter}|{command}\n")
+
+        # Broadcast to all peers
+        for p in peers:
+            host, port = p.host, p.port
+            stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
+            stub.SendCommand(pb2.DatabaseCommand(timestamp=commit_counter, command=command))
 
 
     def stop(self):
@@ -146,9 +157,8 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
 
     def ListenCommands(self, request, context):
         """Continually send stream of items from commit log to client"""
-        host, port = request.host, request.port
-        commit_log_file = f'commit_{host}_{port}.txt'
-        with open(commit_log_file, 'r') as commit_log:
+        global COMMIT_LOG_FILE
+        with open(COMMIT_LOG_FILE, 'r') as commit_log:
             for line in commit_log.readlines():
                 timestamp, command = line.split('|')
                 yield pb2.DatabaseCommand(timestamp=int(timestamp), command=command)
@@ -168,6 +178,24 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
 
     def Heartbeat(self, request, context):
         '''Heartbeat'''
+        return pb2.Empty()
+
+    def SendCommand(self, request, context):
+        '''Register a command in the commit log and database if is greater than own commit counter'''
+        timestamp, command = int(request.timestamp), request.command
+
+        # If timestamp is greater than own commit counter, update commit log
+        if timestamp > commit_counter:
+            # Execute the command
+            with context:
+                SESSION.execute(text(command))
+                SESSION.commit()
+
+            # Update the counter
+            with open(COMMIT_LOG_FILE, "a") as f:
+                f.write(f"{timestamp}|{command}\n")
+            commit_counter = timestamp
+
         return pb2.Empty()
 
     def heartbeat_peer(self, host, port):

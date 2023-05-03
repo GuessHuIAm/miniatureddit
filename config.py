@@ -2,7 +2,7 @@ from secrets import token_hex
 import socket
 
 HOST = socket.gethostbyname(socket.gethostname())
-PORT = 8000
+PORT = 8001
 
 COMMIT_LOG_FILE = f'commit_{HOST}_{PORT}.txt'
 

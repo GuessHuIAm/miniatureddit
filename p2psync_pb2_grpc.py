@@ -34,6 +34,11 @@ class P2PSyncStub(object):
                 request_serializer=p2psync__pb2.Empty.SerializeToString,
                 response_deserializer=p2psync__pb2.Empty.FromString,
                 )
+        self.SendCommand = channel.unary_unary(
+                '/P2PSync/SendCommand',
+                request_serializer=p2psync__pb2.Peer.SerializeToString,
+                response_deserializer=p2psync__pb2.DatabaseCommand.FromString,
+                )
 
 
 class P2PSyncServicer(object):
@@ -63,6 +68,12 @@ class P2PSyncServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SendCommand(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_P2PSyncServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -85,6 +96,11 @@ def add_P2PSyncServicer_to_server(servicer, server):
                     servicer.Heartbeat,
                     request_deserializer=p2psync__pb2.Empty.FromString,
                     response_serializer=p2psync__pb2.Empty.SerializeToString,
+            ),
+            'SendCommand': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendCommand,
+                    request_deserializer=p2psync__pb2.Peer.FromString,
+                    response_serializer=p2psync__pb2.DatabaseCommand.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -161,5 +177,22 @@ class P2PSync(object):
         return grpc.experimental.unary_unary(request, target, '/P2PSync/Heartbeat',
             p2psync__pb2.Empty.SerializeToString,
             p2psync__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SendCommand(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/P2PSync/SendCommand',
+            p2psync__pb2.Peer.SerializeToString,
+            p2psync__pb2.DatabaseCommand.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
