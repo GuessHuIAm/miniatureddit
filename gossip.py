@@ -71,7 +71,6 @@ class GossipProtocol:
 
             new_logs = []
             counter = self.commit_counter
-
             for res in response_iterator:
                 timestamp, command = res.timestamp, res.command
 
@@ -182,7 +181,7 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
 
         # Remove peer if heartbeat fails
         global peers
-        peers.remove((host, port))
+        peers.remove(pb2.Peer(host=host, port=port))
         self.peers_edited = True
 
 
