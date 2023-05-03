@@ -157,13 +157,13 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
 
     def Connect(self, request, context):
         '''Receive connection from other P2PNode'''
-        addr = (request.host, request.port)
+        host, port = request.host, request.port
         global peers
-        peers.append(pb2.Peer(host=addr[0], port=addr[1]))
+        peers.append(pb2.Peer(host=host, port=port))
         self.peers_edited = True
 
         # Start continuous heartbeat with new peer node
-        threading.Thread(target=self.heartbeat_peer, args=(*addr,)).start()
+        threading.Thread(target=self.heartbeat_peer, args=(host, port,)).start()
 
         return pb2.Empty()
 
@@ -183,7 +183,7 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
         # Remove peer if heartbeat fails
         global peers
         peers.remove((host, port))
-        peers_edited = True
+        self.peers_edited = True
 
 
 
