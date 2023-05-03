@@ -41,28 +41,29 @@ class GossipProtocol:
 
 
     def listen_commits(self, session, context):
-        for peer in peers:
-            try:
-                new_logs = self.receive_commit_log(peer)
-            except:
-                continue
+        global peers
+        while True:
+            for peer in peers:
+                try:
+                    new_logs = self.receive_commit_log(peer)
+                except:
+                    continue
 
-            # Update database with commit log
-            if new_logs:
-                self.update_database(new_logs, session, context)
+                # Update database with commit log
+                if new_logs:
+                    self.update_database(new_logs, session, context)
 
-            # Exit loop if we get new logs successfully
-            break
+                # Exit loop if we get new logs successfully
+                break
 
-        else:
-            # If the loop completes without finding any updates, raise an exception
-            raise Exception("Not able to update database. Please check your connection and try again.")
+            else:
+                # If the loop completes without finding any updates, raise an exception
+                raise Exception("Not able to update database. Please check your connection and try again.")
 
 
     def receive_commit_log(self, peer):
         # Receive commit log from peer
         try:
-            print(f"Receiving file from {peer}!")
             host, port = peer.host, peer.port
             stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
             response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
@@ -139,7 +140,8 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
         while True:
             if self.peers_edited:
                 self.peers_edited = False
-                yield pb2.PeerList(peers=self.peers)
+                global peers
+                yield pb2.PeerList(peers=peers)
 
 
     def ListenCommands(self, request, context):
