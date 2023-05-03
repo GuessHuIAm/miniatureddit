@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-  Post Board
+  MiniatuReddit: Post Board
 {% endblock %}
 
 {% block content %}
@@ -19,13 +19,18 @@
       <div class="col-md-6 mb-3">
         <div class="card">
           <div class="card-body">
-            {% if post.post.anonymous %}
-              <h3 class="card-title">Anonymous</h3>
-            {% else %}
-              <h3 class="card-title">{{ post.post.author }}</h3>
-            {% endif %}
-            <h4 class="card-subtitle mb-2 text-muted">{{ post.post.title }}</h4>
+            <h5 class="card-title">{{ post.post.title }}</h5>
             <p class="card-text">{{ post.post.content }}</p>
+            <p class="card-text">
+              <small class="text-muted">Posted by {% if post.post.anonymous %}Anonymous
+                {% else %}
+                <a href='{{ url_for("profile", user_id = post.post.author_id) }}'>
+                {{post.post.author.username}}
+                </a>
+                {% endif %} on {{ post.post.date_posted.strftime('%B %d, %Y') }}</small>
+              </p>
+              <p class="card-text">
+
             <p class="card-text">
               <small class="text-muted">Upvotes: {{ post.post.upvotes }}, Downvotes: {{ post.post.downvotes }}</small>
             </p>
@@ -34,6 +39,9 @@
                 class="btn {% if post.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
               <a href="{{ url_for('downvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = false) }}"
                 class="btn {% if post.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
+              {% if post.post.author_id == current_user.id %}
+                <a href="{{ url_for('delete_post', post_id = post.post.id) }}" class="btn btn-danger">Delete Post</a>
+              {% endif %}
             {% endif %}
             <a href="{{ url_for('post', post_id = post.post.id) }}" class="btn btn-primary">View Post</a>
           </div>

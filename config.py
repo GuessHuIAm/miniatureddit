@@ -1,7 +1,10 @@
 from secrets import token_hex
+import socket
 
-HOST = 'localhost'
+HOST = socket.gethostbyname(socket.gethostname())
 PORT = 8000
+
+COMMIT_LOG_FILE = f'commit_{HOST}_{PORT}.txt'
 
 REP_1_HOST = HOST  # Default port number for replica 1
 REP_1_PORT = 8001  # Default host address for replica 1
@@ -19,3 +22,5 @@ SQLALCHEMY_BINDS = {
 }
 
 SECRET_KEY = token_hex(16)
+
+ILLEGAL_CHARS = ['~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']', '|', '\\', ':', ';', '"', '\'', '<', '>', ',', '.', '?', '/']

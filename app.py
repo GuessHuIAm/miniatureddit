@@ -1,10 +1,12 @@
 from datetime import datetime
+from concurrent import futures
 from functools import wraps
 from multiprocessing import Process
 from ipaddress import ip_address
 import inquirer
+import sys
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for, session
 from flask_login import (LoginManager, current_user, login_required,
                          login_user, logout_user)
 from flask_replicated import FlaskReplicated
@@ -13,7 +15,11 @@ from config import *
 from forms import LoginForm, PostForm, RegisterForm, CommentForm
 from models import Comment, Post, User, Vote, db
 from p2p import P2PNode
+from gossip import P2PSyncServer
 
+import grpc
+import p2psync_pb2 as pb2
+import p2psync_pb2_grpc as pb2_grpc
 
 CONFIG_FILE = 'config.py'
 SERVER_HIERARCHY = [
@@ -32,15 +38,27 @@ def validate_ip(addr):
         raise inquirer.errors.ValidationError("", reason=f"Your input is not an IPV4 or IPV6 address.")
     return True
 
-questions = [inquirer.Text('ip', message="What is the IP address of another node in the network?",
-             validate=lambda _, x: validate_ip(x)),
-             inquirer.Text('port', message="What is the port you want to use to connect to the network?")]
+addr, port = None, None
+while True:
+    questions = [inquirer.Text('ip', message="What is the IP address of another node in the network?",
+                validate=lambda _, x: validate_ip(x)),
+                inquirer.Text('port', message="What is the port you want to use to connect to the network?")]
 
-answers = inquirer.prompt(questions, raise_keyboard_interrupt=True)
-addr, port = answers['ip'], answers['port']
+    answers = inquirer.prompt(questions, raise_keyboard_interrupt=True)
+    addr, port = answers['ip'], answers['port']
 
-# Initialize the P2P node
-node = P2PNode(HOST, PORT, addr, port)
+    # If other node is 'None' provided, then break
+    if addr == 'None':
+        addr, port = None, None
+        break
+
+    # Check to see if the IP address and port represent an active P2PNode
+    stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{addr}:{port}'))
+    try:
+        stub.Connect(pb2.Peer(host=addr, port=port))
+        break
+    except grpc._channel._InactiveRpcError:
+        print('Error: The IP address and port you provided does not refer to an active node.')
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -49,6 +67,16 @@ app.config.from_pyfile(CONFIG_FILE)
 db.init_app(app)
 with app.app_context():
     db.create_all()  # Create the database tables for our data models, if they do not exist
+    
+# Initialize the P2P node
+node = P2PNode(HOST, PORT, addr, port)
+
+# Setup server infra for the P2PNode
+server = grpc.server(futures.ThreadPoolExecutor(max_workers=10)) # 10 threads
+pb2_grpc.add_P2PSyncServicer_to_server(P2PSyncServer(), server) # Add service to server
+server.add_insecure_port(f'{HOST}:{PORT}')
+server.start()
+print(f'P2PNode server started on host {HOST} and port {PORT}')
 
 # Initialize the login manager
 login_manager = LoginManager()
@@ -63,7 +91,7 @@ flask_rep.init_app(app)
 @app.route('/', methods=['GET', 'POST'])
 def index():
     # Display all the posts
-    posts = [{'post': x} for x in Post.query.order_by(Post.upvotes.desc()).all()]
+    posts = [{'post': x} for x in Post.query.filter_by(deleted=False).order_by(Post.upvotes.desc()).all()]
 
     # Logic to properly display user upvotes/downvotes
     if current_user.is_authenticated:
@@ -115,7 +143,7 @@ def login():
         if user is None:
             flash('Username does not exist.')
             return redirect(url_for('login'))
-        elif user.check_password(form.password.data):
+        elif not user.check_password(form.password.data):
             flash('Invalid password.')
             return redirect(url_for('login'))
 
@@ -151,6 +179,8 @@ def register():
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
+        
+        node.broadcast_user(user)
 
         flash('Congratulations, you are now a registered user! You are logged in.')
 
@@ -164,7 +194,6 @@ def register():
 # Route for viewing a user's profile, or the current user's profile if no user ID is specified
 @app.route('/profile', defaults={'user_id': None})
 @app.route('/profile/<int:user_id>')
-@login_required
 def profile(user_id):
     if user_id is None:
         if current_user.is_authenticated:
@@ -172,11 +201,17 @@ def profile(user_id):
         else:
             return redirect(url_for('index'))
     user = User.query.get(user_id)
+    
+    if current_user.is_authenticated:
+        is_current_user = user_id == current_user.id
+    else:
+        is_current_user = False
+            
     if user:
-        posts = Post.query.filter_by(author_id=user_id).order_by(
+        posts = Post.query.filter_by(author_id=user_id, deleted=False).order_by(
             Post.upvotes.desc()).all()
         # is_current_user is used to determine whether to show the logout button
-        return render_template('profile.html', user=user, posts=posts, is_current_user=user_id == current_user.id)
+        return render_template('profile.html', user=user, posts=posts, is_current_user=is_current_user)
     return redirect(url_for('index'))
 
 
@@ -191,6 +226,7 @@ def create_post():
             post.anonymous = True
         db.session.add(post)
         db.session.commit()
+        node.broadcast_post(post)
         flash('Your post has been created!')
         return redirect(url_for('index'))
     return render_template('create_post.html', title='Make a Post', form=form)
@@ -211,8 +247,48 @@ def create_comment(post_id):
             comment.anonymous = True
         db.session.add(comment)
         db.session.commit()
+        node.broadcast_comment(comment)
         print('Comment created')
     return redirect(url_for('post', post_id=post_id))
+
+
+# Route for deleting a post
+@app.route('/delete_post/<post_id>')
+@login_required
+def delete_post(post_id): 
+    post = Post.query.get(post_id)
+    if post:
+        if post.author_id == current_user.id:
+            post.delete()
+            db.session.commit()
+            node.broadcast_delete_post(post)
+            flash('Post deleted.')
+        else:
+            flash('You cannot delete a post that is not yours.')
+    else:
+        flash('Post does not exist.')
+    
+    # Redirect back to the page the user was on
+    return redirect(request.referrer)
+
+
+# Route for deleting a comment
+@app.route('/delete_comment/<comment_id>')
+@login_required
+def delete_comment(comment_id):
+    comment = Comment.query.get(comment_id)
+    if comment:
+        if comment.author_id == current_user.id:
+            comment.delete()
+            db.session.commit()
+            flash('Comment deleted.')
+        else:
+            flash('You cannot delete a comment that is not yours.')
+    else:
+        flash('Comment does not exist.')
+        
+    # Redirect back to the page the user was on
+    return redirect(request.referrer)
 
 
 # Route for upvoting a post or comment
@@ -222,8 +298,8 @@ def upvote(is_post, post_id, comment_id, on_post_page):
     user_id = current_user.id
 
     # Converts string to bool, b/c flask routes don't support bool
-    is_post = is_post == 'True'
-    on_post_page = on_post_page == 'True'
+    is_post = is_post == 'True' # Are we upvoting a post or comment?
+    on_post_page = on_post_page == 'True' # Are we on the post page or the homepage?
 
     # Determine content class and id
     content_class = Post if is_post else Comment
@@ -248,25 +324,30 @@ def upvote(is_post, post_id, comment_id, on_post_page):
             is_upvote = True
         )
 
-        # If a user has voted, either remove an upvote or
-        # swap from downvote to upvote
+        # If a user has a vote in the database, they have already voted
         has_voted = len(vote_query) > 0
         if has_voted:
             vote = vote_query[0]
             content.votes.remove(vote)
             if vote.is_upvote:
+                # Remove the vote from the database
                 content.upvotes -= 1
+                node.broadcast_delete_vote(vote)
             else:
+                # Swap from downvote to upvote
+                content.votes.append(new_vote)
                 content.upvotes += 1
                 content.downvotes -= 1
-                content.votes.append(new_vote)
+                node.broadcast_vote(new_vote)
 
         # Else, register upvote
         else:
-            content.upvotes += 1
             content.votes.append(new_vote)
+            content.upvotes += 1
+            node.broadcast_vote(new_vote)
+        
         db.session.commit()
-        node.broadcast_vote('post' if is_post else 'comment', id, True)
+        
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
 
@@ -309,17 +390,24 @@ def downvote(is_post, post_id, comment_id, on_post_page):
         if has_voted:
             vote = vote_query[0]
             content.votes.remove(vote)
-            if vote.is_upvote:
-                content.upvotes -= 1
-                content.downvotes += 1
-                content.votes.append(new_vote)
-            else:
+            if not vote.is_upvote:     
+                # Remove the vote from the database
                 content.downvotes -= 1
+                node.broadcast_delete_vote(vote)
+            else:
+                # Swap from downvote to upvote
+                content.votes.append(new_vote)
+                content.downvotes += 1
+                content.upvotes -= 1
+                node.broadcast_vote(new_vote)
+
+        # Else, register upvote
         else:
-            content.downvotes += 1
             content.votes.append(new_vote)
+            content.downvotes += 1
+            node.broadcast_vote(new_vote)
+        
         db.session.commit()
-        node.broadcast_vote('post' if is_post else 'comment', id, False)
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
 
@@ -332,7 +420,7 @@ def post(post_id):
         comments = [
             {'comment': x} for x in
             Comment.query
-                .filter_by(post_id=post_id)
+                .filter_by(post_id=post_id, deleted=False)
                 .order_by(Comment.upvotes.desc()).all()
         ]
 
@@ -355,6 +443,10 @@ def post(post_id):
     return redirect(url_for('index'))
 
 
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Grab a port number from the command line
+    p = 5000
+    if len(sys.argv) > 1:
+        p = int(sys.argv[1])
+        
+    app.run(debug=True, port=p)

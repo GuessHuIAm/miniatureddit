@@ -1,21 +1,9 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from werkzeug.security import generate_password_hash, check_password_hash
+from passlib.hash import pbkdf2_sha256
 from datetime import datetime
 
 db = SQLAlchemy()
-
-class Post(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(64), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    upvotes = db.Column(db.Integer, default=0)
-    downvotes = db.Column(db.Integer, default=0)
-    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    anonymous = db.Column(db.Boolean, default=False)
-    date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    comments = db.relationship('Comment', backref='post', lazy=True)
-    votes = db.relationship('Vote', backref='post', lazy='dynamic')
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -39,14 +27,32 @@ class User(db.Model):
         return str(self.id)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password, method='pbkdf2:sha512')
+        self.password_hash = pbkdf2_sha256.encrypt(password, rounds=100000, salt_size=16)
         db.session.commit()
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        return pbkdf2_sha256.verify(password, self.password_hash)
 
     def __repr__(self):
         return '<user/{}>'.format(self.username)
+    
+class Post(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(64), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    upvotes = db.Column(db.Integer, default=0)
+    downvotes = db.Column(db.Integer, default=0)
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    anonymous = db.Column(db.Boolean, default=False)
+    date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    deleted = db.Column(db.Boolean, default=False)
+    comments = db.relationship('Comment', backref='post', lazy=True)
+    votes = db.relationship('Vote', backref='post', lazy='dynamic')
+    
+    def delete(self):
+        self.deleted = True
+        db.session.commit()
+    
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -57,7 +63,13 @@ class Comment(db.Model):
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     upvotes = db.Column(db.Integer, default=0)
     downvotes = db.Column(db.Integer, default=0)
+    deleted = db.Column(db.Boolean, default=False)
     votes = db.relationship('Vote', backref='comment', lazy='dynamic')
+    
+    def delete(self):
+        self.deleted = True
+        db.session.commit()
+
 
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)

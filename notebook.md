@@ -11,7 +11,7 @@ The handshake consists of the following (done through gRPC):
 - The new node receives from the existing node a list of the peers on the network.
 - The existing node streams its commit log to the new node so that the database is up to date.
 
-The commit log is a CSV file in the format of TIMESTAMP,SQL_COMMAND.
+The commit log is a CSV file in the format of TIMESTAMP|SQL_COMMAND.
 
 If the handshake is unsuccessful, then we ask again for an IP address.
 
