@@ -1,6 +1,4 @@
-import socket
 import threading
-import json
 from config import *
 from models import db
 from os import path
