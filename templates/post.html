@@ -89,7 +89,8 @@
                     <a href="#" class="btn btn-secondary create-comment-link">Reply</a>
                 {% endif %}
             </div>
-            <div class="card-footer create-comment-form">
+            {% if logged_in %}
+            <div class="card-footer create-comment-form" style="display: none;">
               <form method="post" action="{{ url_for('create_comment', post_id=post.post.id, parent_id=comment.comment.id) }}" class="form-horizontal">
                 {{ form.csrf_token }}
                 <div class="form-group">
@@ -106,7 +107,8 @@
                 <button type="submit" class="btn btn-primary">Submit</button>
               </form>
             </div>
-            {% if comment.comment.children != []%}
+            {% endif %}
+            {% if comment.children %}
                 <div class="card-footer">
                     {{ render_comments(comment.children) }}
                 </div>
@@ -121,15 +123,17 @@
     <p>No comments yet.</p>
 {% endif %}
 
-{% endblock %}
-<script>
-  $(document).ready(function() {
-      $('.create-comment-link').click(function(e) {
-          e.preventDefault();
-          $(this).closest('.card').find('.create-comment-form').toggle();
-      });
-  });
-</script>
 {% block scripts %}
+    <script>
+        $(document).ready(function() {
+            // Show/hide comment form when "Reply" link is clicked
+            $('.create-comment-link').click(function(e) {
+                e.preventDefault();
+                var commentId = $(this).data('comment-id');
+                $('.create-comment-form[data-comment-id="' + commentId + '"]').toggle();
+            });
+        });
+    </script>
+{% endblock %}
 
 {% endblock %}

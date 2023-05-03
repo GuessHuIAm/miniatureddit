@@ -236,16 +236,23 @@ def create_post():
 
 # Route for creating a new comment
 @app.route('/create_comment/<post_id>', methods=['GET', 'POST'])
-@app.route('/create_comment/<post_id>/<comment_id>', methods=['GET', 'POST'])
+@app.route('/create_comment/<post_id>/<parent_id>', methods=['GET', 'POST'])
 @login_required
-def create_comment(post_id, comment_id=None):
+def create_comment(post_id, parent_id=None):
     form = CommentForm()
     if form.validate_on_submit():
         print(form)
-        comment = Comment(
-            content=form.content.data, author=current_user,
-            post_id=post_id, date_posted=datetime.utcnow(), parent_id=comment_id
-        )
+        if parent_id:
+            parent_id = int(parent_id)
+            comment = Comment(
+                content=form.content.data, author=current_user,
+                post_id=post_id, date_posted=datetime.utcnow(), parent_id=parent_id
+            )
+        else:
+            comment = Comment(
+                content=form.content.data, author=current_user,
+                post_id=post_id, date_posted=datetime.utcnow()
+            )
         if form.anonymous.data:
             comment.anonymous = True
         db.session.add(comment)
@@ -326,6 +333,8 @@ def upvote(is_post, post_id, comment_id, on_post_page):
             comment_id = -1 if is_post else comment_id,
             is_upvote = True
         )
+        
+        db.session.add(new_vote)
 
         # If a user has a vote in the database, they have already voted
         has_voted = len(vote_query) > 0

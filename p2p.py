@@ -19,9 +19,14 @@ class P2PNode:
         self.gossip_protocol.broadcast(command)
 
     def broadcast_comment(self, comment):
-        command = f"INSERT INTO comment (id, post_id, author_id, content, anonymous, date_posted, upvotes, downvotes, parent_id) VALUES \
-                    ({comment.id}, {comment.post_id}, {comment.author_id}, '{comment.content}', \
-                    {comment.anonymous}, '{comment.date_posted}', {comment.upvotes}, {comment.downvotes}, {comment.parent_id});"
+        if comment.has_parent():
+            command = f"INSERT INTO comment (id, post_id, author_id, content, anonymous, date_posted, upvotes, downvotes, parent_id) VALUES \
+                        ({comment.id}, {comment.post_id}, {comment.author_id}, '{comment.content}', \
+                        {comment.anonymous}, '{comment.date_posted}', {comment.upvotes}, {comment.downvotes}, {comment.parent_id});"
+        else:
+            command = f"INSERT INTO comment (id, post_id, author_id, content, anonymous, date_posted, upvotes, downvotes) VALUES \
+                        ({comment.id}, {comment.post_id}, {comment.author_id}, '{comment.content}', \
+                        {comment.anonymous}, '{comment.date_posted}', {comment.upvotes}, {comment.downvotes});"
         self.gossip_protocol.broadcast(command)
 
     def broadcast_vote(self, vote):

@@ -71,7 +71,9 @@ class Comment(db.Model):
     def delete(self):
         self.deleted = True
         db.session.commit()
-
+        
+    def has_parent(self):
+        return self.parent_id is not None
 
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
