@@ -60,6 +60,8 @@ class Comment(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     anonymous = db.Column(db.Boolean, default=False)
+    # parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
+    # children = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]), lazy=True)
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     upvotes = db.Column(db.Integer, default=0)
     downvotes = db.Column(db.Integer, default=0)
