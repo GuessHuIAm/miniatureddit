@@ -236,14 +236,15 @@ def create_post():
 
 # Route for creating a new comment
 @app.route('/create_comment/<post_id>', methods=['GET', 'POST'])
+@app.route('/create_comment/<post_id>/<comment_id>', methods=['GET', 'POST'])
 @login_required
-def create_comment(post_id):
+def create_comment(post_id, comment_id=None):
     form = CommentForm()
     if form.validate_on_submit():
         print(form)
         comment = Comment(
             content=form.content.data, author=current_user,
-            post_id=post_id, date_posted=datetime.utcnow()
+            post_id=post_id, date_posted=datetime.utcnow(), parent_id=comment_id
         )
         if form.anonymous.data:
             comment.anonymous = True
@@ -416,15 +417,24 @@ def downvote(is_post, post_id, comment_id, on_post_page):
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 def post(post_id):
+    def get_comment_tree(comment):
+        """Returns a dictionary representing the comment and all its descendants."""
+        return {
+            'comment': comment,
+            'children': [get_comment_tree(child, user_id) for child in comment.children]
+        }
+        
+    def add_is_upvote(comment):
+        content = comment['comment']
+        vote_query = content.votes.filter_by(user_id=user_id, comment_id=content.id).all()
+        is_upvote = vote_query[0].is_upvote if len(vote_query) > 0 else None
+        comment['is_upvote'] = is_upvote
+        [add_is_upvote(child) for child in comment['children']]
+            
     post = {'post': Post.query.get(post_id)}
     if post['post']:
-        # Display all the comments
-        comments = [
-            {'comment': x} for x in
-            Comment.query
-                .filter_by(post_id=post_id, deleted=False)
-                .order_by(Comment.upvotes.desc()).all()
-        ]
+        root_comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.upvotes.desc()).all()
+        comment_trees = [get_comment_tree(comment) for comment in root_comments]
 
         # Logic to properly display user upvotes/downvotes
         if current_user.is_authenticated:
@@ -433,14 +443,9 @@ def post(post_id):
                 user_id=user_id, post_id=post['post'].id
             ).all()
             post['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
-            for comment in comments:
-                content = comment['comment']
-                vote_query = content.votes.filter_by(
-                    user_id=user_id, comment_id=content.id
-                ).all()
-                comment['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
+            [add_is_upvote(comment) for comment in comment_trees] 
 
-        return render_template('post.html', post=post, form=CommentForm(), comments=comments, logged_in=current_user.is_authenticated)
+        return render_template('post.html', post=post, form=CommentForm(), comments=comment_trees, logged_in=current_user.is_authenticated)
 
     return redirect(url_for('index'))
 

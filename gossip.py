@@ -4,11 +4,7 @@ import json
 from config import *
 from models import db
 from os import path
-from sqlalchemy import create_engine, text
-
-import grpc
-import p2psync_pb2 as pb2
-import p2psync_pb2_grpc as pb2_grpc
+from sqlalchemy import text
 
 
 class GossipProtocol:
