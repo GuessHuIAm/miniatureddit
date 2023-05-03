@@ -13,20 +13,20 @@ class P2PNode:
         self.gossip_protocol.broadcast(command)
 
     def broadcast_post(self, post):
-        command = f"INSERT INTO post (id, title, content, upvotes, downvotes, author_id, anonymous, date_posted) VALUES \
-                    ({post.id}, '{post.title}', '{post.content}', {post.upvotes}, {post.downvotes}, {post.author_id}, \
-                    {post.anonymous}, '{post.date_posted}');"
+        command = f"INSERT INTO post (id, title, content, author_id, anonymous, date_posted, deleted) VALUES \
+                    ({post.id}, '{post.title}', '{post.content}', {post.author_id}, \
+                    {post.anonymous}, '{post.date_posted}', {post.deleted});"
         self.gossip_protocol.broadcast(command)
 
     def broadcast_comment(self, comment):
         if comment.has_parent():
-            command = f"INSERT INTO comment (id, post_id, author_id, content, anonymous, date_posted, upvotes, downvotes, parent_id) VALUES \
+            command = f"INSERT INTO comment (id, post_id, author_id, content, anonymous, date_posted, parent_id, deleted) VALUES \
                         ({comment.id}, {comment.post_id}, {comment.author_id}, '{comment.content}', \
-                        {comment.anonymous}, '{comment.date_posted}', {comment.upvotes}, {comment.downvotes}, {comment.parent_id});"
+                        {comment.anonymous}, '{comment.date_posted}', {comment.parent_id, comment.deleted});"
         else:
-            command = f"INSERT INTO comment (id, post_id, author_id, content, anonymous, date_posted, upvotes, downvotes) VALUES \
+            command = f"INSERT INTO comment (id, post_id, author_id, content, anonymous, date_posted, deleted) VALUES \
                         ({comment.id}, {comment.post_id}, {comment.author_id}, '{comment.content}', \
-                        {comment.anonymous}, '{comment.date_posted}', {comment.upvotes}, {comment.downvotes});"
+                        {comment.anonymous}, '{comment.date_posted}', {comment.deleted});"
         self.gossip_protocol.broadcast(command)
 
     def broadcast_vote(self, vote):

@@ -40,8 +40,6 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(64), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    upvotes = db.Column(db.Integer, default=0)
-    downvotes = db.Column(db.Integer, default=0)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     anonymous = db.Column(db.Boolean, default=False)
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -52,6 +50,12 @@ class Post(db.Model):
     def delete(self):
         self.deleted = True
         db.session.commit()
+        
+    def get_upvotes(self):
+        return self.votes.filter_by(is_upvote=True).count()
+    
+    def get_downvotes(self):
+        return self.votes.filter_by(is_upvote=False).count()
     
 
 class Comment(db.Model):
@@ -62,8 +66,6 @@ class Comment(db.Model):
     anonymous = db.Column(db.Boolean, default=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'))
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    upvotes = db.Column(db.Integer, default=0)
-    downvotes = db.Column(db.Integer, default=0)
     deleted = db.Column(db.Boolean, default=False)
     votes = db.relationship('Vote', backref='comment', lazy='dynamic')
     children = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]), lazy=True)
@@ -74,6 +76,12 @@ class Comment(db.Model):
         
     def has_parent(self):
         return self.parent_id is not None
+    
+    def get_upvotes(self):
+        return self.votes.filter_by(is_upvote=True).count()
+    
+    def get_downvotes(self):
+        return self.votes.filter_by(is_upvote=False).count()
 
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)

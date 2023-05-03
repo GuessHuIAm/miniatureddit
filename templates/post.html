@@ -28,7 +28,7 @@
           {% endif %} on {{ post.post.date_posted.strftime('%B %d, %Y') }}</small>
         </p>
         <p class="card-text">
-        <small class="text-muted">Upvotes: {{ post.post.upvotes }}, Downvotes: {{ post.post.downvotes }}</small>
+        <small class="text-muted">Upvotes: {{ post.post.get_upvotes() }}, Downvotes: {{ post.post.get_downvotes() }}</small>
         </p>
         {% if logged_in %}
             <a href="{{ url_for('upvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = true) }}"
@@ -76,7 +76,7 @@
                     <small class="text-muted">Comment by {% if comment.comment.anonymous %}Anonymous{% else %}{{ comment.comment.author.username }}{% endif %} on {{ comment.comment.date_posted.strftime('%B %d, %Y') }}</small>
                 </p>
                 <p class="card-text">
-                    <small class="text-muted">Upvotes: {{ comment.comment.upvotes }}, Downvotes: {{ comment.comment.downvotes }}</small>
+                    <small class="text-muted">Upvotes: {{ comment.comment.get_upvotes() }}, Downvotes: {{ comment.comment.get_downvotes() }}</small>
                 </p>
                 {% if logged_in %}
                     <a href="{{ url_for('upvote', post_id=comment.comment.post_id, comment_id=comment.comment.id, is_post=False, on_post_page=True) }}"
@@ -120,7 +120,11 @@
 {% if comments %}
     {{ render_comments(comments) }}
 {% else %}
+<div class="card mb-3">
+  <div class="card-body">
     <p>No comments yet.</p>
+  </div>
+</div>
 {% endif %}
 
 {% block scripts %}

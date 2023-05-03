@@ -91,9 +91,9 @@ flask_rep.init_app(app)
 @app.route('/', methods=['GET', 'POST'])
 def index():
     query = request.args.get('query')
-    posts = [{'post': x} for x in Post.query.filter_by(deleted=False).order_by(Post.upvotes.desc()).all()]
+    posts = [{'post': x} for x in Post.query.filter_by(deleted=False).order_by(Post.date_posted.desc()).all()]
     if query:
-        posts = [{'post': x} for x in Post.query.filter(Post.title.contains(query) | Post.content.contains(query)).filter_by(deleted=False).order_by(Post.upvotes.desc()).all()]
+        posts = [{'post': x} for x in Post.query.filter(Post.title.contains(query) | Post.content.contains(query)).filter_by(deleted=False).order_by(Post.date_posted.desc()).all()]
 
     # Logic to properly display user upvotes/downvotes
     if current_user.is_authenticated:
@@ -211,7 +211,7 @@ def profile(user_id):
 
     if user:
         posts = Post.query.filter_by(author_id=user_id, deleted=False).order_by(
-            Post.upvotes.desc()).all()
+            Post.date_posted.desc()).all()
         # is_current_user is used to determine whether to show the logout button
         return render_template('profile.html', user=user, posts=posts, is_current_user=is_current_user)
     return redirect(url_for('index'))
@@ -343,17 +343,12 @@ def upvote(is_post, post_id, comment_id, on_post_page):
             if vote.is_upvote:
                 # Remove the vote from the database
                 node.broadcast_delete_vote(vote)
-                
-                content.upvotes -= 1
             else:
                 # Swap from downvote to upvote
                 db.session.add(new_vote)
                 db.session.commit()
                 content.votes.append(new_vote)
                 node.broadcast_vote(new_vote)
-                
-                content.upvotes += 1
-                content.downvotes -= 1
 
         # Else, register upvote
         else:
@@ -361,7 +356,6 @@ def upvote(is_post, post_id, comment_id, on_post_page):
             db.session.commit()
             
             content.votes.append(new_vote)
-            content.upvotes += 1
             node.broadcast_vote(new_vote)
 
         db.session.commit()
@@ -412,24 +406,18 @@ def downvote(is_post, post_id, comment_id, on_post_page):
             if not vote.is_upvote:
                 # Remove the vote from the database
                 node.broadcast_delete_vote(vote)
-                
-                content.downvotes -= 1
             else:
                 # Swap from downvote to upvote
                 db.session.add(new_vote)
                 db.session.commit()
                 content.votes.append(new_vote)
                 node.broadcast_vote(new_vote)
-                
-                content.downvotes += 1
-                content.upvotes -= 1
 
         # Else, register upvote
         else:
             db.session.add(new_vote)
             db.session.commit()
             content.votes.append(new_vote)
-            content.downvotes += 1
             node.broadcast_vote(new_vote)
             
         db.session.commit()
@@ -443,7 +431,7 @@ def post(post_id):
         """Returns a dictionary representing the comment and all its descendants."""
         return {
             'comment': comment,
-            'children': [get_comment_tree(child, user_id) for child in comment.children]
+            'children': [get_comment_tree(child, user_id) for child in comment.children],
         }
 
     def add_is_upvote(comment):
@@ -452,10 +440,11 @@ def post(post_id):
         is_upvote = vote_query[0].is_upvote if len(vote_query) > 0 else None
         comment['is_upvote'] = is_upvote
         [add_is_upvote(child) for child in comment['children']]
+        
 
     post = {'post': Post.query.get(post_id)}
     if post['post']:
-        root_comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.upvotes.desc()).all()
+        root_comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.date_posted.desc()).all()
         comment_trees = [get_comment_tree(comment) for comment in root_comments]
 
         # Logic to properly display user upvotes/downvotes

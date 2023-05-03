@@ -51,7 +51,7 @@
               <p class="card-text">
 
             <p class="card-text">
-              <small class="text-muted">Upvotes: {{ post.post.upvotes }}, Downvotes: {{ post.post.downvotes }}</small>
+              <small class="text-muted">Upvotes: {{ post.post.get_upvotes() }}, Downvotes: {{ post.post.get_downvotes() }}</small>
             </p>
             {% if logged_in %}
               <a href="{{ url_for('upvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = false) }}"
