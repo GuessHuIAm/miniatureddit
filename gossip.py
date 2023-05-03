@@ -35,58 +35,58 @@ class GossipProtocol:
             open(self.COMMIT_LOG_FILE, 'w').close()
             self.commit_counter = 0
 
-        if peers:
-            # Constantly update current commit log with any of the other peers' commit logs
-            self.commit_listener_thread = threading.Thread(target=self.listen_commits, args=(session, context))
-            self.commit_listener_thread.start()
+        # Constantly update current commit log with any of the other peers' commit logs
+        self.commit_listener_thread = threading.Thread(target=self.listen_commits, args=(session, context))
+        self.commit_listener_thread.start()
 
 
     def listen_commits(self, session, context):
         global peers
         while True:
-            for peer in peers:
-                # try:
-                new_logs = self.receive_commit_log(peer)
-                # except:
-                #     continue
+            if peers:
+                for peer in peers:
+                    try:
+                        new_logs = self.receive_commit_log(peer)
+                    except grpc._channel._InactiveRpcError:
+                        continue
 
-                # Update database with commit log
-                if new_logs:
-                    self.update_database(new_logs, session, context)
+                    # Update database with commit log
+                    if new_logs:
+                        self.update_database(new_logs, session, context)
 
-                # Exit loop if we get new logs successfully
-                break
+                    # Exit loop if we get new logs successfully
+                    break
 
-            else:
-                # If the loop completes without finding any updates, raise an exception
-                raise Exception("Not able to update database. Please check your connection and try again.")
+                else:
+                    # If the loop completes without finding any updates, raise an exception
+                    raise Exception("Not able to update database. Please check your connection and try again.")
 
 
     def receive_commit_log(self, peer):
         # Receive commit log from peer
-        # try:
-        host, port = peer.host, peer.port
-        stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
-        response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
+        try:
+            host, port = peer.host, peer.port
+            stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
+            response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
 
-        new_logs = []
-        counter = self.commit_counter
+            new_logs = []
+            counter = self.commit_counter
 
-        for res in response_iterator:
-            timestamp, command = res.timestamp, res.command
+            for res in response_iterator:
+                timestamp, command = res.timestamp, res.command
 
-            if int(timestamp) > counter:
-                # Add the commit to the list of new commits
-                new_logs.append(f'{timestamp}|{command[:-1]}')
+                if int(timestamp) > counter:
+                    # Add the commit to the list of new commits
+                    new_logs.append(f'{timestamp}|{command[:-1]}')
 
-                # Update the counter variable
-                counter = int(timestamp)
+                    # Update the counter variable
+                    counter = int(timestamp)
 
-        return new_logs
+            return new_logs
 
-        # except Exception:
-        #     print("Could not receive file.")
-        #     return None
+        except Exception:
+            print("Could not receive file.")
+            return None
 
 
     def update_database(self, new_logs, session, context):
