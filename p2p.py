@@ -5,8 +5,6 @@ class P2PNode:
     def __init__(self, self_ip, self_port, other_ip, other_port, session, context):
         self.gossip_protocol = GossipProtocol(self_ip, self_port, other_ip, other_port, session, context)
 
-        print("P2PNode initialized, with peers: ", self.gossip_protocol.peers)
-
     def broadcast_user(self, user):
         command = f"INSERT INTO user (id, username, password_hash, date_created) VALUES \
                     ({user.id}, '{user.username}', '{user.password_hash}', '{user.date_created}');"

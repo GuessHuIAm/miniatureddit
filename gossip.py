@@ -13,7 +13,8 @@ class GossipProtocol:
         self.COMMIT_LOG_FILE = f'commit_{self_ip}_{self_port}.txt'
 
         # Sets up a UDP socket listener on a specified port
-        self.peers = \
+        global peers
+        peers = \
             [pb2.Peer(host=other_ip, port=other_port)] \
             if not (other_ip is None or other_port is None) \
             else []
@@ -22,8 +23,8 @@ class GossipProtocol:
         self.stop_flag = False
 
         # Start listener threads for incoming peers
-        if self.peers:
-            self.listener_threads = [threading.Thread(target=self.listen_peers, args=(self.peers[0],))]
+        if peers:
+            self.listener_threads = [threading.Thread(target=self.listen_peers, args=(peers[0],))]
             self.listener_threads[0].start()
 
         # Get the last commit number
@@ -33,24 +34,29 @@ class GossipProtocol:
         else:
             self.commit_counter = 0
 
-        if self.peers:
-            # Update current commit log with any of the other peers' commit logs
-            for peer in self.peers:
-                try:
-                    new_logs = self.receive_commit_log(peer)
-                except:
-                    continue
+        if peers:
+            # Constantly update current commit log with any of the other peers' commit logs
+            self.commit_listener_thread = threading.Thread(target=self.listen_commits, args=(session, context))
+            self.commit_listener_thread.start()
 
-                # Update database with commit log
-                if new_logs:
-                    self.update_database(new_logs, session, context)
 
-                # Exit loop if we get new logs successfully
-                break
+    def listen_commits(self, session, context):
+        for peer in peers:
+            try:
+                new_logs = self.receive_commit_log(peer)
+            except:
+                continue
 
-            else:
-                # If the loop completes without finding any updates, raise an exception
-                raise Exception("Not able to update database. Please check your connection and try again.")
+            # Update database with commit log
+            if new_logs:
+                self.update_database(new_logs, session, context)
+
+            # Exit loop if we get new logs successfully
+            break
+
+        else:
+            # If the loop completes without finding any updates, raise an exception
+            raise Exception("Not able to update database. Please check your connection and try again.")
 
 
     def receive_commit_log(self, peer):
@@ -105,7 +111,8 @@ class GossipProtocol:
         for p in peers_stream:
             if self.stop_flag:
                 break
-            self.peers = p.peers  # TODO: Verify that this works as intended
+            global peers
+            peers = p.peers  # TODO: Verify that this works as intended
 
 
     def broadcast(self, command):
@@ -117,12 +124,13 @@ class GossipProtocol:
 
     def stop(self):
         self.stop_flag = True
-        self.listener_thread.join()
+        for t in self.listener_threads:
+            t.join()
+        self.commit_listener_thread.join()
 
 
 class P2PSyncServer(pb2_grpc.P2PSyncServicer):
     def __init__(self):
-        self.peers = []
         self.peers_edited = True
 
 
@@ -147,7 +155,8 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
     def Connect(self, request, context):
         '''Receive connection from other P2PNode'''
         addr = (request.host, request.port)
-        self.peers.append(pb2.Peer(host=addr[0], port=addr[1]))
+        global peers
+        peers.append(pb2.Peer(host=addr[0], port=addr[1]))
         self.peers_edited = True
 
         # Start continuous heartbeat with new peer node
@@ -169,8 +178,9 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
                 break
 
         # Remove peer if heartbeat fails
-        self.peers.remove((host, port))
-        self.peers_edited = True
+        global peers
+        peers.remove((host, port))
+        peers_edited = True
 
 
 
