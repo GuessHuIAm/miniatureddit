@@ -4,6 +4,7 @@ import json
 from config import *
 from models import db
 from os import path
+from sqlalchemy import create_engine, text
 
 import grpc
 import p2psync_pb2 as pb2
@@ -11,7 +12,7 @@ import p2psync_pb2_grpc as pb2_grpc
 
 
 class GossipProtocol:
-    def __init__(self, self_ip, self_port, other_ip=None, other_port=None):
+    def __init__(self, self_ip, self_port, other_ip, other_port, session, context):
         self.COMMIT_LOG_FILE = f'commit_{self_ip}_{self_port}.txt'
 
         # Sets up a UDP socket listener on a specified port
@@ -36,18 +37,19 @@ class GossipProtocol:
             self.commit_counter = 0
 
         if self.peers:
-            # TODO: Implement this gRPC
-            # Grabs the other peers
-
             # Update current commit log with any of the other peers' commit logs
             for peer in self.peers:
-                new_logs = self.receive_commit_log(peer)
+                try:
+                    new_logs = self.receive_commit_log(peer)
+                except:
+                    continue
 
                 # Update database with commit log
                 if new_logs:
-                    self.update_database(new_logs)
-                    # Exit loop if database is updated
-                    break
+                    self.update_database(new_logs, session, context)
+
+                # Exit loop if we get new logs successfully
+                break
 
             else:
                 # If the loop completes without finding any updates, raise an exception
@@ -56,40 +58,42 @@ class GossipProtocol:
 
     def receive_commit_log(self, peer):
         # Receive commit log from peer
-        # try:
-        print(f"Receiving file from {peer}!")
-        host, port = peer.host, peer.port
-        stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
-        response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
+        try:
+            print(f"Receiving file from {peer}!")
+            host, port = peer.host, peer.port
+            stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
+            response_iterator = stub.ListenCommands(pb2.Peer(host=host, port=port))
 
-        new_logs = []
-        counter = self.commit_counter
+            new_logs = []
+            counter = self.commit_counter
 
-        for res in response_iterator:
-            timestamp, command = res.timestamp, res.command
+            for res in response_iterator:
+                timestamp, command = res.timestamp, res.command
 
-            if int(timestamp) > counter:
-                # Add the commit to the list of new commits
-                new_logs.append(f'{timestamp}|{command}')
+                if int(timestamp) > counter:
+                    # Add the commit to the list of new commits
+                    new_logs.append(f'{timestamp}|{command[:-1]}')
 
-                # Update the counter variable
-                counter = int(timestamp)
+                    # Update the counter variable
+                    counter = int(timestamp)
 
-        return new_logs
+            return new_logs
 
-        # except Exception:
-        #     print("Could not receive file.")
-        #     return None
+        except Exception:
+            print("Could not receive file.")
+            return None
 
 
-    def update_database(self, new_logs):
+    def update_database(self, new_logs, session, context):
         '''Get the database up to date with the commit log,
         starting from the last commit number, self.commit_counter'''
         for line in new_logs:
             commit_num, commit = line.split("|")
             if int(commit_num) > self.commit_counter:
                 # Execute the commit
-                db.execute(commit)
+                with context:
+                    session.execute(text(commit))
+                    session.commit()
                 # Update the counter
                 with open(self.COMMIT_LOG_FILE, "a") as f:
                     f.write(f"{str(commit_num)}|{commit}\n")
@@ -137,17 +141,16 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
         """Continually send stream of items from commit log to client"""
         host, port = request.host, request.port
         commit_log_file = f'commit_{host}_{port}.txt'
-        while True:
-            with open(commit_log_file, 'r') as commit_log:
-                for line in commit_log.readlines():
-                    timestamp, command = line.split('|')
-                    yield pb2.DatabaseCommand(timestamp=int(timestamp), command=command)
+        with open(commit_log_file, 'r') as commit_log:
+            for line in commit_log.readlines():
+                timestamp, command = line.split('|')
+                yield pb2.DatabaseCommand(timestamp=int(timestamp), command=command)
 
 
     def Connect(self, request, context):
         '''Receive connection from other P2PNode'''
         addr = (request.host, request.port)
-        self.peers.append(pb2.Peer(*addr))
+        self.peers.append(pb2.Peer(host=addr[0], port=addr[1]))
         self.peers_edited = True
 
         # Start continuous heartbeat with new peer node

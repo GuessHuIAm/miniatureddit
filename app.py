@@ -55,7 +55,7 @@ while True:
     # Check to see if the IP address and port represent an active P2PNode
     stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{addr}:{port}'))
     try:
-        stub.Connect(pb2.Peer(host=addr, port=port))
+        stub.Connect(request=pb2.Peer(host=addr, port=port))
         break
     except grpc._channel._InactiveRpcError:
         print('Error: The IP address and port you provided does not refer to an active node.')
@@ -67,9 +67,9 @@ app.config.from_pyfile(CONFIG_FILE)
 db.init_app(app)
 with app.app_context():
     db.create_all()  # Create the database tables for our data models, if they do not exist
-    
+
 # Initialize the P2P node
-node = P2PNode(HOST, PORT, addr, port)
+node = P2PNode(HOST, PORT, addr, port, db.session, app.app_context())
 
 # Setup server infra for the P2PNode
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=10)) # 10 threads
@@ -181,7 +181,7 @@ def register():
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        
+
         node.broadcast_user(user)
 
         flash('Congratulations, you are now a registered user! You are logged in.')
@@ -203,12 +203,12 @@ def profile(user_id):
         else:
             return redirect(url_for('index'))
     user = User.query.get(user_id)
-    
+
     if current_user.is_authenticated:
         is_current_user = user_id == current_user.id
     else:
         is_current_user = False
-            
+
     if user:
         posts = Post.query.filter_by(author_id=user_id, deleted=False).order_by(
             Post.upvotes.desc()).all()
@@ -257,7 +257,7 @@ def create_comment(post_id):
 # Route for deleting a post
 @app.route('/delete_post/<post_id>')
 @login_required
-def delete_post(post_id): 
+def delete_post(post_id):
     post = Post.query.get(post_id)
     if post:
         if post.author_id == current_user.id:
@@ -269,7 +269,7 @@ def delete_post(post_id):
             flash('You cannot delete a post that is not yours.')
     else:
         flash('Post does not exist.')
-    
+
     # Redirect back to the page the user was on
     return redirect(request.referrer)
 
@@ -288,7 +288,7 @@ def delete_comment(comment_id):
             flash('You cannot delete a comment that is not yours.')
     else:
         flash('Comment does not exist.')
-        
+
     # Redirect back to the page the user was on
     return redirect(request.referrer)
 
@@ -347,9 +347,9 @@ def upvote(is_post, post_id, comment_id, on_post_page):
             content.votes.append(new_vote)
             content.upvotes += 1
             node.broadcast_vote(new_vote)
-        
+
         db.session.commit()
-        
+
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
 
@@ -392,7 +392,7 @@ def downvote(is_post, post_id, comment_id, on_post_page):
         if has_voted:
             vote = vote_query[0]
             content.votes.remove(vote)
-            if not vote.is_upvote:     
+            if not vote.is_upvote:
                 # Remove the vote from the database
                 content.downvotes -= 1
                 node.broadcast_delete_vote(vote)
@@ -408,7 +408,7 @@ def downvote(is_post, post_id, comment_id, on_post_page):
             content.votes.append(new_vote)
             content.downvotes += 1
             node.broadcast_vote(new_vote)
-        
+
         db.session.commit()
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
@@ -450,5 +450,5 @@ if __name__ == '__main__':
     p = 5000
     if len(sys.argv) > 1:
         p = int(sys.argv[1])
-        
-    app.run(debug=True, port=p)
+
+    app.run(debug=False, port=p)

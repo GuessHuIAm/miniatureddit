@@ -2,11 +2,11 @@ from gossip import GossipProtocol
 
 
 class P2PNode:
-    def __init__(self, self_ip, self_port, other_ip, other_port):
-        self.gossip_protocol = GossipProtocol(self_ip, self_port, other_ip, other_port)
-            
+    def __init__(self, self_ip, self_port, other_ip, other_port, session, context):
+        self.gossip_protocol = GossipProtocol(self_ip, self_port, other_ip, other_port, session, context)
+
         print("P2PNode initialized, with peers: ", self.gossip_protocol.peers)
-        
+
     def broadcast_user(self, user):
         command = f"INSERT INTO user (id, username, password_hash, date_created) VALUES \
                     ({user.id}, '{user.username}', '{user.password_hash}', '{user.date_created}');"
@@ -29,11 +29,11 @@ class P2PNode:
                     ({vote.id}, {vote.user_id}, {vote.post_id}, \
                     {vote.comment_id}, {vote.is_upvote});"
         self.gossip_protocol.broadcast(command)
-        
+
     def broadcast_delete_vote(self, vote):
         command = f"DELETE FROM vote WHERE id={vote.id};"
         self.gossip_protocol.broadcast(command)
-        
+
     def broadcast_delete_post(self, post):
         command = f"UPDATE post SET deleted=1 WHERE id={post.id};"
 
