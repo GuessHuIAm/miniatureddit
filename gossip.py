@@ -123,6 +123,7 @@ class GossipProtocol:
 
     def broadcast(self, command):
         '''Broadcasts a command to all peers in the network, and updates the commit log'''
+        global commit_counter
         commit_counter += 1
         with open(COMMIT_LOG_FILE, "a") as f:
             f.write(f"{commit_counter}|{command}\n")
@@ -131,7 +132,7 @@ class GossipProtocol:
         for p in peers:
             host, port = p.host, p.port
             stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
-            stub.SendCommand(pb2.DatabaseCommand(timestamp=commit_counter, command=command))
+            stub.SendCommand(pb2.DatabaseCommand(timestamp=int(commit_counter), command=command))
 
 
     def stop(self):
@@ -182,12 +183,14 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
 
     def SendCommand(self, request, context):
         '''Register a command in the commit log and database if is greater than own commit counter'''
-        timestamp, command = int(request.timestamp), request.command
+        timestamp, command = request.timestamp, request.command
 
         # If timestamp is greater than own commit counter, update commit log
         if timestamp > commit_counter:
             # Execute the command
-            with context:
+            global CONTEXT
+            global SESSION
+            with CONTEXT:
                 SESSION.execute(text(command))
                 SESSION.commit()
 
