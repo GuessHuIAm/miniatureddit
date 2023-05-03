@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 
 {% block title %}
-  Register
+  MiniatuReddit: Register
 {% endblock %}
 
 {% block content %}
   <h1>Make an Account</h1>
+  <p>
   <form method="post" action="{{ url_for('register') }}">
     {{ form.hidden_tag() }}
     <div class="form-group">
@@ -38,8 +39,9 @@
         {% endif %}
       {% endwith %}
     </div>
+  </p>
     <button type="submit" class="btn btn-primary">Register</button>
-    Already have an account?
+    &nbsp; Already have an account?
     <a href="{{ url_for('login') }}">Login<a>
   </form>
 {% endblock %}

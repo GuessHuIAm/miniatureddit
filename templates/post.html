@@ -1,21 +1,91 @@
 {% extends 'base.html' %}
 
 {% block title %}
-  Post
+  MiniatuReddit: Post {{ post.id }}
 {% endblock %}
 
 {% block content %}
+<h1>View Post</h1>
 <div class="card mb-3">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flashes">
+            {% for message in messages %}
+            <span class="text-danger">{{ message }}</span>
+            {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
     <div class="card-body">
-        <h5 class="card-title">{{ post.title }}</h5>
-        <p class="card-text">{{ post.content }}</p>
+        <h5 class="card-title">{{ post.post.title }}</h5>
+        <p class="card-text">{{ post.post.content }}</p>
         <p class="card-text">
-        <small class="text-muted">Posted by {{ post.author.username }} on {{ post.date_posted.strftime('%B %d, %Y') }}</small>
+        <small class="text-muted">Posted by {% if post.post.anonymous %}Anonymous
+          {% else %}
+          <a href='{{ url_for("profile", user_id = post.post.author_id) }}'>
+          {{ post.post.author.username }}
+          </a>
+          {% endif %} on {{ post.post.date_posted.strftime('%B %d, %Y') }}</small>
         </p>
         <p class="card-text">
-        <small class="text-muted">Upvotes: {{ post.upvotes }}, Downvotes: {{ post.downvotes }}</small>
+        <small class="text-muted">Upvotes: {{ post.post.upvotes }}, Downvotes: {{ post.post.downvotes }}</small>
+        </p>
+        {% if logged_in %}
+            <a href="{{ url_for('upvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = true) }}"
+                class="btn {% if post.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
+            <a href="{{ url_for('downvote', post_id = post.post.id, comment_id = 0, is_post = true, on_post_page = true) }}"
+                class="btn {% if post.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
+            {% if post.post.author_id == current_user.id %}
+                <a href="{{ url_for('delete_post', post_id = post.post.id) }}" class="btn btn-danger">Delete</a>
+            {% endif %}
+        {% endif %}
     </div>
 </div>
 
-{% for comment in comments %}{# TODO #}{% endfor %}
+<div class="card mb-3 alt">
+{% if logged_in %}
+<div class="card-body">
+    <div class="row">
+        <div class="col-md-6">
+          <form method="post" action="{{ url_for('create_comment', post_id=post.post.id) }}" class="form-horizontal">
+            {{ form.csrf_token }}
+            <div class="form-group">
+              {{ form.content.label(class="form-label") }}
+              {{ form.content(class="form-control") }}
+              {% for error in form.content.errors %}
+                <span class="text-danger">{{ error }}</span>
+              {% endfor %}
+            </div>
+            <div class="form-group form-check">
+              {{ form.anonymous.label(class="form-check-label") }}
+              {{ form.anonymous(class="form-check-input") }}
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+          </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% for comment in comments %}
+    <div class="card-body">
+        <p class="card-text">{{ comment.comment.content }}</p>
+        <p class="card-text">
+            <small class="text-muted">Comment by {% if comment.comment.anonymous %}Anonymous{% else %}{{ comment.comment.author.username }}{% endif %} on {{ comment.comment.date_posted.strftime('%B %d, %Y') }}</small>
+        </p>
+        <p class="card-text">
+        <small class="text-muted">Upvotes: {{ comment.comment.upvotes }}, Downvotes: {{ comment.comment.downvotes }}</small>
+        </p>
+        {% if logged_in %}
+            <a href="{{ url_for('upvote', post_id = comment.comment.post_id, comment_id = comment.comment.id, is_post = false, on_post_page = true) }}"
+                class="btn {% if comment.is_upvote == True %}btn-success{% else %}btn-secondary{% endif %}">Upvote</a>
+            <a href="{{ url_for('downvote', post_id = comment.comment.post_id, comment_id = comment.comment.id, is_post = false, on_post_page = true) }}"
+                class="btn {% if comment.is_upvote == False %}btn-danger{% else %}btn-secondary{% endif %}">Downvote</a>
+            {% if comment.comment.author_id == current_user.id %}
+                <a href="{{ url_for('delete_comment', comment_id = comment.comment.id) }}" class="btn btn-danger">Delete</a>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endfor %}
+
 {% endblock %}
