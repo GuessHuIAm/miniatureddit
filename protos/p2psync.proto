@@ -2,9 +2,10 @@ syntax = "proto3";
 
 service P2PSync{
     rpc GetPeerList(Empty) returns (stream PeerList) {}
-    rpc ListenCommands(Peer) returns (stream DatabaseCommand) {}
+    rpc ListenCommands(Empty) returns (stream DatabaseCommand) {}
     rpc Connect(Peer) returns (Empty) {}
     rpc Heartbeat(Empty) returns (Empty) {}
+    rpc SendCommand(DatabaseCommand) returns (Empty) {}
 }
 
 message Empty {
