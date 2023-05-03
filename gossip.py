@@ -97,6 +97,7 @@ class GossipProtocol:
     def update_database(self, new_logs):
         '''Get the database up to date with the commit log,
         starting from the last commit number, commit_counter'''
+        global commit_counter
         for line in new_logs:
             commit_num, commit = line.split("|")
             if int(commit_num) > commit_counter:
