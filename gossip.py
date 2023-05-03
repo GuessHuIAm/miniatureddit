@@ -6,6 +6,9 @@ from models import db
 from os import path
 from sqlalchemy import text
 
+import p2psync_pb2 as pb2
+import p2psync_pb2_grpc as pb2_grpc
+import grpc
 
 class GossipProtocol:
     def __init__(self, self_ip, self_port, other_ip, other_port, session, context):

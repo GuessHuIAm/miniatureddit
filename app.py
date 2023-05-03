@@ -423,14 +423,14 @@ def post(post_id):
             'comment': comment,
             'children': [get_comment_tree(child, user_id) for child in comment.children]
         }
-        
+
     def add_is_upvote(comment):
         content = comment['comment']
         vote_query = content.votes.filter_by(user_id=user_id, comment_id=content.id).all()
         is_upvote = vote_query[0].is_upvote if len(vote_query) > 0 else None
         comment['is_upvote'] = is_upvote
         [add_is_upvote(child) for child in comment['children']]
-            
+
     post = {'post': Post.query.get(post_id)}
     if post['post']:
         root_comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.upvotes.desc()).all()
@@ -443,7 +443,7 @@ def post(post_id):
                 user_id=user_id, post_id=post['post'].id
             ).all()
             post['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
-            [add_is_upvote(comment) for comment in comment_trees] 
+            [add_is_upvote(comment) for comment in comment_trees]
 
         return render_template('post.html', post=post, form=CommentForm(), comments=comment_trees, logged_in=current_user.is_authenticated)
 
