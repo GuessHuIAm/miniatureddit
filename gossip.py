@@ -149,9 +149,7 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
         '''Receive connection from other P2PNode'''
         host, port = request.host, request.port
         peer = pb2.Peer(host=host, port=port)
-        stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
         global peers
-        stub.SetPeerList(peers)
         self.broadcast_peer_update(peers, peer, True)
         peers.append(peer)
 
