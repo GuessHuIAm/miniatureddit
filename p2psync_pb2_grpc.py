@@ -39,6 +39,11 @@ class P2PSyncStub(object):
                 request_serializer=p2psync__pb2.DatabaseCommand.SerializeToString,
                 response_deserializer=p2psync__pb2.Empty.FromString,
                 )
+        self.SetPeerList = channel.unary_unary(
+                '/P2PSync/SetPeerList',
+                request_serializer=p2psync__pb2.PeerList.SerializeToString,
+                response_deserializer=p2psync__pb2.Empty.FromString,
+                )
 
 
 class P2PSyncServicer(object):
@@ -74,6 +79,12 @@ class P2PSyncServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SetPeerList(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_P2PSyncServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -100,6 +111,11 @@ def add_P2PSyncServicer_to_server(servicer, server):
             'SendCommand': grpc.unary_unary_rpc_method_handler(
                     servicer.SendCommand,
                     request_deserializer=p2psync__pb2.DatabaseCommand.FromString,
+                    response_serializer=p2psync__pb2.Empty.SerializeToString,
+            ),
+            'SetPeerList': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetPeerList,
+                    request_deserializer=p2psync__pb2.PeerList.FromString,
                     response_serializer=p2psync__pb2.Empty.SerializeToString,
             ),
     }
@@ -193,6 +209,23 @@ class P2PSync(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/P2PSync/SendCommand',
             p2psync__pb2.DatabaseCommand.SerializeToString,
+            p2psync__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SetPeerList(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/P2PSync/SetPeerList',
+            p2psync__pb2.PeerList.SerializeToString,
             p2psync__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

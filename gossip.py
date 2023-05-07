@@ -148,7 +148,9 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
         '''Receive connection from other P2PNode'''
         host, port = request.host, request.port
         peer = pb2.Peer(host=host, port=port)
+        stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{host}:{port}'))
         global peers
+        stub.SetPeerList(peers)
         self.broadcast_peer_update(peers, peer, True)
         peers.append(peer)
 
@@ -182,6 +184,13 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
                 f.write(f"{timestamp}|{command}\n")
             commit_counter = timestamp
 
+        return pb2.Empty()
+
+
+    def SetPeerList(self, request, context):
+        '''Initialize peer list of this node to that given in the input'''
+        global peers
+        peers = request.peers
         return pb2.Empty()
 
 
