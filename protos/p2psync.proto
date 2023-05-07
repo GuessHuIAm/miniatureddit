@@ -6,6 +6,7 @@ service P2PSync{
     rpc Connect(Peer) returns (Empty) {}
     rpc Heartbeat(Empty) returns (Empty) {}
     rpc SendCommand(DatabaseCommand) returns (Empty) {}
+    rpc RequestPeerList(Peer) returns (PeerList) {}
 }
 
 message Empty {
@@ -14,6 +15,10 @@ message Empty {
 message PeerUpdate {
     Peer peer = 1;
     bool add = 2;
+}
+
+message PeerList {
+    repeated Peer peers = 1;
 }
 
 message Peer {

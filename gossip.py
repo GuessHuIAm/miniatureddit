@@ -20,8 +20,9 @@ class GossipProtocol:
 
         # Sets up a UDP socket listener on a specified port
         global peers
+        stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{other_ip}:{other_port}'))
         peers = \
-            [pb2.Peer(host=other_ip, port=other_port)] \
+            [pb2.Peer(host=other_ip, port=other_port)] + list(stub.RequestPeerList(pb2.Peer(host=self_ip, port=str(self_port))).peers) \
             if not (other_ip is None or other_port is None) \
             else []
 
@@ -92,6 +93,7 @@ class GossipProtocol:
     def update_database(self, new_logs):
         '''Get the database up to date with the commit log,
         starting from the last commit number, commit_counter'''
+        global commit_counter
         for line in new_logs:
             commit_num, commit = line.split("|")
             if int(commit_num) > commit_counter:
@@ -182,6 +184,12 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
             commit_counter = timestamp
 
         return pb2.Empty()
+
+
+    def RequestPeerList(self, request, context):
+        '''Initialize peer list of this node to that given in the input'''
+        global peers
+        return pb2.PeerList(peers=[x for x in peers if x != request])
 
 
     def heartbeat_peer(self, host, port):
