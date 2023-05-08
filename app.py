@@ -9,7 +9,6 @@ import sys
 from flask import Flask, flash, redirect, render_template, request, url_for, session
 from flask_login import (LoginManager, current_user, login_required,
                          login_user, logout_user)
-from flask_replicated import FlaskReplicated
 
 from config import *
 from forms import LoginForm, PostForm, RegisterForm, CommentForm
@@ -22,11 +21,6 @@ import p2psync_pb2 as pb2
 import p2psync_pb2_grpc as pb2_grpc
 
 CONFIG_FILE = 'config.py'
-SERVER_HIERARCHY = [
-    (HOST, PORT),
-    (REP_1_HOST, REP_1_PORT),
-    (REP_2_HOST, REP_2_PORT)
-]
 
 def validate_ip(addr):
     """Validates an IP address without noisy ValueError"""
@@ -55,7 +49,7 @@ while True:
     # Check to see if the IP address and port represent an active P2PNode
     stub = pb2_grpc.P2PSyncStub(grpc.insecure_channel(f'{addr}:{port}'))
     try:
-        stub.Connect(pb2.Peer(host=addr, port=port))
+        stub.Connect(pb2.Peer(host=HOST, port=str(PORT)))
         break
     except grpc._channel._InactiveRpcError:
         print('Error: The IP address and port you provided does not refer to an active node.')
@@ -67,9 +61,9 @@ app.config.from_pyfile(CONFIG_FILE)
 db.init_app(app)
 with app.app_context():
     db.create_all()  # Create the database tables for our data models, if they do not exist
-    
+
 # Initialize the P2P node
-node = P2PNode(HOST, PORT, addr, port)
+node = P2PNode(HOST, PORT, addr, port, db.session, app.app_context())
 
 # Setup server infra for the P2PNode
 server = grpc.server(futures.ThreadPoolExecutor(max_workers=10)) # 10 threads
@@ -82,18 +76,14 @@ print(f'P2PNode server started on host {HOST} and port {PORT}')
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# Initialized flask replicator
-flask_rep = FlaskReplicated(app)
-flask_rep.init_app(app)
-
 
 # Route for the homepage, which shows all the posts
 @app.route('/', methods=['GET', 'POST'])
 def index():
     query = request.args.get('query')
-    posts = [{'post': x} for x in Post.query.filter_by(deleted=False).order_by(Post.upvotes.desc()).all()]
+    posts = [{'post': x} for x in Post.query.filter_by(deleted=False).order_by(Post.date_posted.desc()).all()]
     if query:
-        posts = [{'post': x} for x in Post.query.filter(Post.title.contains(query) | Post.content.contains(query)).filter_by(deleted=False).order_by(Post.upvotes.desc()).all()]
+        posts = [{'post': x} for x in Post.query.filter(Post.title.contains(query) | Post.content.contains(query)).filter_by(deleted=False).order_by(Post.date_posted.desc()).all()]
 
     # Logic to properly display user upvotes/downvotes
     if current_user.is_authenticated:
@@ -181,7 +171,7 @@ def register():
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        
+
         node.broadcast_user(user)
 
         flash('Congratulations, you are now a registered user! You are logged in.')
@@ -203,15 +193,15 @@ def profile(user_id):
         else:
             return redirect(url_for('index'))
     user = User.query.get(user_id)
-    
+
     if current_user.is_authenticated:
         is_current_user = user_id == current_user.id
     else:
         is_current_user = False
-            
+
     if user:
         posts = Post.query.filter_by(author_id=user_id, deleted=False).order_by(
-            Post.upvotes.desc()).all()
+            Post.date_posted.desc()).all()
         # is_current_user is used to determine whether to show the logout button
         return render_template('profile.html', user=user, posts=posts, is_current_user=is_current_user)
     return redirect(url_for('index'))
@@ -236,28 +226,34 @@ def create_post():
 
 # Route for creating a new comment
 @app.route('/create_comment/<post_id>', methods=['GET', 'POST'])
+@app.route('/create_comment/<post_id>/<parent_id>', methods=['GET', 'POST'])
 @login_required
-def create_comment(post_id):
+def create_comment(post_id, parent_id=None):
     form = CommentForm()
     if form.validate_on_submit():
-        print(form)
-        comment = Comment(
-            content=form.content.data, author=current_user,
-            post_id=post_id, date_posted=datetime.utcnow()
-        )
+        if parent_id:
+            parent_id = int(parent_id)
+            comment = Comment(
+                content=form.content.data, author=current_user,
+                post_id=post_id, date_posted=datetime.utcnow(), parent_id=parent_id
+            )
+        else:
+            comment = Comment(
+                content=form.content.data, author=current_user,
+                post_id=post_id, date_posted=datetime.utcnow()
+            )
         if form.anonymous.data:
             comment.anonymous = True
         db.session.add(comment)
         db.session.commit()
         node.broadcast_comment(comment)
-        print('Comment created')
     return redirect(url_for('post', post_id=post_id))
 
 
 # Route for deleting a post
 @app.route('/delete_post/<post_id>')
 @login_required
-def delete_post(post_id): 
+def delete_post(post_id):
     post = Post.query.get(post_id)
     if post:
         if post.author_id == current_user.id:
@@ -269,7 +265,7 @@ def delete_post(post_id):
             flash('You cannot delete a post that is not yours.')
     else:
         flash('Post does not exist.')
-    
+
     # Redirect back to the page the user was on
     return redirect(request.referrer)
 
@@ -288,7 +284,7 @@ def delete_comment(comment_id):
             flash('You cannot delete a comment that is not yours.')
     else:
         flash('Comment does not exist.')
-        
+
     # Redirect back to the page the user was on
     return redirect(request.referrer)
 
@@ -330,26 +326,28 @@ def upvote(is_post, post_id, comment_id, on_post_page):
         has_voted = len(vote_query) > 0
         if has_voted:
             vote = vote_query[0]
-            content.votes.remove(vote)
+            db.session.delete(vote)
+            db.session.commit()
             if vote.is_upvote:
                 # Remove the vote from the database
-                content.upvotes -= 1
                 node.broadcast_delete_vote(vote)
             else:
                 # Swap from downvote to upvote
+                db.session.add(new_vote)
+                db.session.commit()
                 content.votes.append(new_vote)
-                content.upvotes += 1
-                content.downvotes -= 1
                 node.broadcast_vote(new_vote)
 
         # Else, register upvote
         else:
+            db.session.add(new_vote)
+            db.session.commit()
+
             content.votes.append(new_vote)
-            content.upvotes += 1
             node.broadcast_vote(new_vote)
-        
+
         db.session.commit()
-        
+
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
 
@@ -391,24 +389,25 @@ def downvote(is_post, post_id, comment_id, on_post_page):
         has_voted = len(vote_query) > 0
         if has_voted:
             vote = vote_query[0]
-            content.votes.remove(vote)
-            if not vote.is_upvote:     
+            db.session.delete(vote)
+            db.session.commit()
+            if not vote.is_upvote:
                 # Remove the vote from the database
-                content.downvotes -= 1
                 node.broadcast_delete_vote(vote)
             else:
                 # Swap from downvote to upvote
+                db.session.add(new_vote)
+                db.session.commit()
                 content.votes.append(new_vote)
-                content.downvotes += 1
-                content.upvotes -= 1
                 node.broadcast_vote(new_vote)
 
         # Else, register upvote
         else:
+            db.session.add(new_vote)
+            db.session.commit()
             content.votes.append(new_vote)
-            content.downvotes += 1
             node.broadcast_vote(new_vote)
-        
+
         db.session.commit()
 
     return redirect(url_for('post', post_id=post_id)) if on_post_page else redirect(url_for('index'))
@@ -416,15 +415,25 @@ def downvote(is_post, post_id, comment_id, on_post_page):
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 def post(post_id):
+    def get_comment_tree(comment):
+        """Returns a dictionary representing the comment and all its descendants."""
+        return {
+            'comment': comment,
+            'children': [get_comment_tree(child) for child in comment.children],
+        }
+
+    def add_is_upvote(comment):
+        content = comment['comment']
+        vote_query = content.votes.filter_by(user_id=user_id, comment_id=content.id).all()
+        is_upvote = vote_query[0].is_upvote if len(vote_query) > 0 else None
+        comment['is_upvote'] = is_upvote
+        [add_is_upvote(child) for child in comment['children']]
+
+
     post = {'post': Post.query.get(post_id)}
     if post['post']:
-        # Display all the comments
-        comments = [
-            {'comment': x} for x in
-            Comment.query
-                .filter_by(post_id=post_id, deleted=False)
-                .order_by(Comment.upvotes.desc()).all()
-        ]
+        root_comments = Comment.query.filter_by(post_id=post_id, parent_id=None).order_by(Comment.date_posted.desc()).all()
+        comment_trees = [get_comment_tree(comment) for comment in root_comments]
 
         # Logic to properly display user upvotes/downvotes
         if current_user.is_authenticated:
@@ -433,14 +442,9 @@ def post(post_id):
                 user_id=user_id, post_id=post['post'].id
             ).all()
             post['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
-            for comment in comments:
-                content = comment['comment']
-                vote_query = content.votes.filter_by(
-                    user_id=user_id, comment_id=content.id
-                ).all()
-                comment['is_upvote'] = vote_query[0].is_upvote if len(vote_query) > 0 else None
+            [add_is_upvote(comment) for comment in comment_trees]
 
-        return render_template('post.html', post=post, form=CommentForm(), comments=comments, logged_in=current_user.is_authenticated)
+        return render_template('post.html', post=post, form=CommentForm(), comments=comment_trees, logged_in=current_user.is_authenticated)
 
     return redirect(url_for('index'))
 
@@ -450,5 +454,5 @@ if __name__ == '__main__':
     p = 5000
     if len(sys.argv) > 1:
         p = int(sys.argv[1])
-        
-    app.run(debug=True, port=p)
+
+    app.run(debug=False, port=p)
