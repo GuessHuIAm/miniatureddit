@@ -16,8 +16,8 @@ class P2PSyncStub(object):
         """
         self.PeerListUpdate = channel.unary_unary(
                 '/P2PSync/PeerListUpdate',
-                request_serializer=p2psync__pb2.Empty.SerializeToString,
-                response_deserializer=p2psync__pb2.PeerUpdate.FromString,
+                request_serializer=p2psync__pb2.PeerUpdate.SerializeToString,
+                response_deserializer=p2psync__pb2.Empty.FromString,
                 )
         self.ListenCommands = channel.unary_stream(
                 '/P2PSync/ListenCommands',
@@ -90,8 +90,8 @@ def add_P2PSyncServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'PeerListUpdate': grpc.unary_unary_rpc_method_handler(
                     servicer.PeerListUpdate,
-                    request_deserializer=p2psync__pb2.Empty.FromString,
-                    response_serializer=p2psync__pb2.PeerUpdate.SerializeToString,
+                    request_deserializer=p2psync__pb2.PeerUpdate.FromString,
+                    response_serializer=p2psync__pb2.Empty.SerializeToString,
             ),
             'ListenCommands': grpc.unary_stream_rpc_method_handler(
                     servicer.ListenCommands,
@@ -140,8 +140,8 @@ class P2PSync(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/P2PSync/PeerListUpdate',
-            p2psync__pb2.Empty.SerializeToString,
-            p2psync__pb2.PeerUpdate.FromString,
+            p2psync__pb2.PeerUpdate.SerializeToString,
+            p2psync__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

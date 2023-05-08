@@ -135,6 +135,8 @@ class P2PSyncServer(pb2_grpc.P2PSyncServicer):
         else:
             peers.remove(peer)
 
+        return pb2.Empty()
+
 
     def ListenCommands(self, request, context):
         """Continually send stream of items from commit log to client"""

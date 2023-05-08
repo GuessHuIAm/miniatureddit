@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 service P2PSync{
-    rpc PeerListUpdate(Empty) returns (PeerUpdate) {}
+    rpc PeerListUpdate(PeerUpdate) returns (Empty) {}
     rpc ListenCommands(Empty) returns (stream DatabaseCommand) {}
     rpc Connect(Peer) returns (Empty) {}
     rpc Heartbeat(Empty) returns (Empty) {}
